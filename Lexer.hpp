@@ -11,17 +11,17 @@ enum class Token
 	Lab, Rab, // Angle brackets
 	Lsb, Rsb, // Square brackets
 	
-	Nil, // Sequential nil
-	Dot, // Term seperator
-	Id, // Identifier, i.e. location name, variable name, function name etc.
+	Astx, // Sequential nil
+	Dot, // Term separator
+	SemiColon, // Semi-colon
+	Eql, // Equal sign
 
-	StaticFuncDec, // Static function declaraton
+	Id, // Identifier, i.e. location name, variable name, function name etc.
 
 	True, // Boolean true
 	False, // Boolean false
 
 	IfFunc, // If function
-	PrintFunc, // Print function
 
 	Eof
 };
@@ -39,10 +39,9 @@ public:
 	Lexer(Lexer &&) = delete;
 	Lexer &operator=(Lexer &&) = delete;
 
+	std::string getFullBuffer() const;
+	std::string getTokenBuffer() const;
 	Token getToken() const;
-	std::string getTokenText() const;
-
-	std::string getCompleteBuffer() const;
 
 	void advance();
 
@@ -52,8 +51,7 @@ private:
 private:
 	std::istream *m_Input;
 	
-	std::string m_Buffer;
+	std::string m_FullBuffer;
+	std::string m_TokenBuffer;
 	Token m_CurrToken;
-
-	std::string m_CompleteBuffer;
 };

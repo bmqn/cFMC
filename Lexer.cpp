@@ -2,6 +2,22 @@
 
 #include <iostream>
 
+static void lexError(std::string message, const Lexer &lexer)
+{
+	std::string buf = lexer.getFullBuffer();
+	int tokenLen = lexer.getTokenBuffer().size();
+
+	std::string underlineErr;
+	underlineErr += std::string(buf.size() - tokenLen, ' ');
+	underlineErr += std::string("~");
+
+	std::cerr << "[Lex Error] " << message << std::endl;
+	std::cerr << "    " << buf << std::endl;
+	std::cerr << "    " << underlineErr << std::endl;
+
+	std::exit(1);
+}
+
 std::ostream &operator<<(std::ostream& os, const Token &token)
 {
 	switch (token)
@@ -18,20 +34,20 @@ std::ostream &operator<<(std::ostream& os, const Token &token)
 	case Token::Rsb:
 		os << ']';
 		break;
-	case Token::Nil:
+	case Token::Astx:
 		os << '*';
 		break;
 	case Token::Dot:
 		os << '.';
 		break;
+	case Token::SemiColon:
+		os << ';';
+		break;
+	case Token::Eql:
+		os << '=';
+		break;
 	case Token::Id:
 		os << "Id";
-		break;
-	case Token::StaticFuncDec:
-		os << "StaticFuncDec";
-		break;
-	case Token::PrintFunc:
-		os << "PrintFunc";
 		break;
 	case Token::IfFunc:
 		os << "IfFunc";
@@ -50,32 +66,35 @@ Lexer::Lexer(std::istream &is)
 	advance();
 }
 
+std::string Lexer::getFullBuffer() const
+{
+	return m_FullBuffer;
+}
+
+std::string Lexer::getTokenBuffer() const
+{
+	return m_TokenBuffer;
+}
+
 Token Lexer::getToken() const
 {
 	return m_CurrToken;
 }
 
-std::string Lexer::getTokenText() const
-{
-	return m_Buffer;
-}
-
-std::string Lexer::getCompleteBuffer() const
-{
-	return m_CompleteBuffer;
-}
-
 void Lexer::advance()
 {
-	if (auto nextOpt = nextToken())
+	if (m_CurrToken != Token::Eof)
 	{
-		auto [token, buffer] = nextOpt.value();
-		m_CurrToken = token;
-		m_Buffer = buffer;
-	}
-	else
-	{
-		std::cerr << "[Lexing Error] Could not advance the lexer !" << std::endl;
+		if (auto nextOpt = nextToken())
+		{
+			auto [token, buffer] = nextOpt.value();
+			m_CurrToken = token;
+			m_TokenBuffer = buffer;
+		}
+		else
+		{
+			lexError("Could not advance the lexer !", *this);
+		}
 	}
 }
 
@@ -90,13 +109,13 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 		return std::make_pair(Token::Eof, buffer);
 	}
 
-	m_CompleteBuffer += c;
+	m_FullBuffer += c;
 
 	// Eat whitespace
 	while (std::isspace(c))
 	{
 		c = m_Input->get();
-		m_CompleteBuffer += c;
+		m_FullBuffer += c;
 	}
 	buffer += c;
 
@@ -118,40 +137,34 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 	}
 	else if (c == '*')
 	{
-		return std::make_pair(Token::Nil, buffer);
+		return std::make_pair(Token::Astx, buffer);
 	}
 	else if (c == '.')
 	{
 		return std::make_pair(Token::Dot, buffer);
 	}
-	else if (c == 'S')
+	else if (c == ';')
 	{
-		c = m_Input->get();
-		m_CompleteBuffer += c;
-
-		if (c == '=')
-		{
-			buffer += c;
-
-			return std::make_pair(Token::StaticFuncDec, buffer);
-		}
-
-		m_Input->putback(c);
+		return std::make_pair(Token::SemiColon, buffer);
+	}
+	else if (c == '=')
+	{
+		return std::make_pair(Token::Eql, buffer);
 	}
 	
 	if (std::isalpha(c))
 	{
 		c = m_Input->get();
-		m_CompleteBuffer += c;
+		m_FullBuffer += c;
 
 		while (std::isalpha(c))
 		{
 			buffer += c;
 			c = m_Input->get();
-			m_CompleteBuffer += c;
+			m_FullBuffer += c;
 		}
 		m_Input->putback(c);
-		m_CompleteBuffer.pop_back();
+		m_FullBuffer.pop_back();
 
 		if (buffer == "true")
 		{
@@ -164,10 +177,6 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 		else if (buffer == "if")
 		{
 			return std::make_pair(Token::IfFunc, buffer);
-		}
-		else if (buffer == "print")
-		{
-			return std::make_pair(Token::PrintFunc, buffer);
 		}
 		else
 		{

@@ -7,6 +7,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <cstdint>
+#include <stack>
 
 #include "Lexer.hpp"
 
@@ -29,8 +30,8 @@ struct AppTerm;
 struct Loc
 {
 	Loc() : loc() {}
+	Loc(std::string l) : loc(l) {}
 	Loc(std::string_view l) : loc(l) {}
-	Loc(Loc_t l) : loc(l) {}
 
 	friend bool operator==(const Loc &lhs, const Loc &rhs)
 	{
@@ -51,7 +52,8 @@ struct LocHash
 struct Var
 {
 	Var() : var() {}
-	Var(Var_t v) : var(v) {}
+	Var(std::string v) : var(v) {}
+	Var(std::string_view v) : var(v) {}
 
 	friend bool operator==(const Var &lhs, const Var &rhs)
 	{
@@ -80,26 +82,43 @@ struct VarContTerm
 	VarContTerm();
 	VarContTerm(Var var);
 
+	VarContTerm(const AbsTerm &other) = delete;
+	VarContTerm &operator=(const AbsTerm &other) = delete;
+
 	Var var;
-	Term *body;
+	std::unique_ptr<Term> body;
 };
 
 struct AbsTerm
 {
 	AbsTerm();
+	AbsTerm(Loc loc, Var var);
+
+	AbsTerm(const AbsTerm &other) = delete;
+	AbsTerm &operator=(const AbsTerm &other) = delete;
+
+	AbsTerm(AbsTerm &&other);
+	AbsTerm &operator=(AbsTerm &&other);
 
 	Loc loc;
 	Var var;
-	Term *body;
+	std::unique_ptr<Term> body;
 };
 
 struct AppTerm
 {
 	AppTerm();
+	AppTerm(Loc loc);
+
+	AppTerm(const AppTerm &other) = delete;
+	AppTerm &operator=(const AppTerm &other) = delete;
+
+	AppTerm(AppTerm &&other);
+	AppTerm &operator=(AppTerm &&other);
 
 	Loc loc;
-	Term *arg;
-	Term *body;
+	std::unique_ptr<Term> arg;
+	std::unique_ptr<Term> body;
 };
 
 class Term
@@ -112,25 +131,60 @@ private:
 public:
 	enum Kind
 	{
-		Nil, VarCont, Abs, App,
+		Nil, VarCont, Abs, App
 	};
 
 	Term() = delete;
+	Term(const Term &other) = delete;
+	Term &operator=(const Term &other) = delete;
 
-	template<typename T>
-	Term(Kind kind, T term)
-		: m_Kind(kind), m_Term(term)
-	{}
+	Term(NilTerm &&term) : m_Kind(Nil), m_Term(std::move(term)) {}
+	Term(VarContTerm &&term) : m_Kind(VarCont), m_Term(std::move(term)) {}
+	Term(AbsTerm &&term) : m_Kind(Abs), m_Term(std::move(term)) {}
+	Term(AppTerm &&term) : m_Kind(App), m_Term(std::move(term)) {}
+
+	Term(Term &&other)
+		: m_Kind(std::move(other.m_Kind))
+		, m_Term(std::move(other.m_Term))
+	{
+		other.m_Kind = Nil;
+		other.m_Term = NilTerm();
+	}
+
+	Term &operator=(Term &&other)
+	{
+		m_Kind = other.m_Kind;
+		m_Term = std::move(other.m_Term);
+
+		other.m_Kind = Nil;
+		other.m_Term = NilTerm();
+
+		return *this;
+	}
 
 	Kind kind() const
 	{
 		return m_Kind;
 	}
 
-	template<typename T>
-	T term() const
+	const NilTerm &asNil() const
 	{
-		return std::get<T>(m_Term);
+		return std::get<NilTerm>(m_Term);
+	}
+
+	const VarContTerm &asVarCont() const
+	{
+		return std::get<VarContTerm>(m_Term);
+	}
+
+	const AbsTerm &asAbs() const
+	{
+		return std::get<AbsTerm>(m_Term);
+	}
+
+	const AppTerm &asApp() const
+	{
+		return std::get<AppTerm>(m_Term);
 	}
 
 private:
@@ -141,38 +195,33 @@ private:
 class Program
 {
 public:
-	Program()
-		: m_Entry(nullptr)
+	Program() : m_Entry(nullptr) {}
+
+	void setEntry(Term &&term)
 	{
+		m_Entry = std::make_shared<Term>(std::move(term));
 	}
 
-	void setEntry(const Term term)
+	std::weak_ptr<const Term> getEntry() const
 	{
-		m_Entry = std::make_unique<Term>(term);
-	}
-
-	const Term *getEntry() const
-	{
-		return m_Entry.get();
+		return m_Entry;
 	}
 
 private:
-	std::unique_ptr<Term> m_Entry;
+	std::shared_ptr<Term> m_Entry;
 };
 
 class Parser
 {
 public:
-
 	Parser();
 
 	Program parse(const std::string &programSrc);
 
 private:
-	std::optional<Term> parseMain();
+	std::unordered_map<std::string, Term> parseFuncDefs();
 
-	std::optional<Term> parseTerm();
-
+	std::optional<Term> parseTerm(bool handleErrors = true);
 	std::optional<AbsTerm> parseAbstraction(Loc loc = Loc(k_DefaultLoc));
 	std::optional<AppTerm> parseApplication(Loc loc = Loc(k_DefaultLoc));
 

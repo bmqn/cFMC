@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 #include <stack>
 #include <unordered_map>
@@ -10,9 +11,9 @@
 
 using BoundVars_t = std::unordered_map<Var, const Term *, VarHash>;
 using Stack_t     = std::vector<const Term *>;
-using Scope_t     = std::pair<const Term *, BoundVars_t>;
+using Env_t       = std::pair<const Term *, BoundVars_t>;
 
-Scope_t createScope();
+Env_t createScope();
 
 class Machine
 {
@@ -23,6 +24,8 @@ public:
 	void printDebug();
 
 private:
+	void execute(const Term &term);
+
+private:
 	std::unordered_map<Loc, Stack_t, LocHash> m_Stacks;
-	std::stack<Scope_t> m_Scope;
 };

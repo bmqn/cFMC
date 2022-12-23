@@ -33,33 +33,118 @@ static std::string varGenerator()
 	return str;
 }
 
-static void parseError(std::string message, const Lexer &lexer)
+static auto newNilTerm()
 {
-	std::string complBuf = lexer.getCompleteBuffer();
-	int tokenLen = lexer.getTokenText().size();
+	return std::make_unique<Term>(Term(NilTerm()));
+}
 
-	std::string underlineErr;
-	underlineErr += std::string(complBuf.size() - tokenLen, ' ');
-	underlineErr += std::string(tokenLen, '~');
+static auto newTerm(NilTerm &&term)
+{
+	return std::make_unique<Term>(Term(std::move(term)));
+}
 
+static auto newTerm(VarContTerm &&term)
+{
+	return std::make_unique<Term>(Term(std::move(term)));
+}
+
+static auto newTerm(AbsTerm &&term)
+{
+	return std::make_unique<Term>(Term(std::move(term)));
+}
+
+static auto newTerm(AppTerm &&term)
+{
+	return std::make_unique<Term>(Term(std::move(term)));
+}
+
+static void parseError(std::string message, const Lexer *lexer = nullptr)
+{
 	std::cerr << "[Parse Error] " << message << std::endl;
-	std::cerr << "    " << complBuf << std::endl;
-	std::cerr << "    " << underlineErr << std::endl;
+
+	if (lexer)
+	{
+		std::string buf = lexer->getFullBuffer();
+		int tokenLen = lexer->getTokenBuffer().size();
+
+		std::string underlineErr;
+		underlineErr += std::string(buf.size() - tokenLen, ' ');
+		underlineErr += std::string("~");
+
+		std::cerr << "    " << buf << std::endl;
+		std::cerr << "    " << underlineErr << std::endl;
+	}
 
 	std::exit(1);
 }
 
-VarContTerm::VarContTerm() : var(), body(new Term(Term::Nil, NilTerm())) {}
-VarContTerm::VarContTerm(Var var) : var(var), body(new Term(Term::Nil, NilTerm())) {}
+VarContTerm::VarContTerm()
+	: var()
+	, body(newNilTerm())
+{}
 
-AbsTerm::AbsTerm() : loc(), var(), body(new Term(Term::Nil, NilTerm())) {}
+VarContTerm::VarContTerm(Var var)
+	: var(var)
+	, body(newNilTerm())
+{}
 
-AppTerm::AppTerm() : loc(), arg(new Term(Term::Nil, NilTerm())), body(new Term(Term::Nil, NilTerm())) {}
+AbsTerm::AbsTerm()
+	: loc()
+	, var()
+	, body(newNilTerm())
+{}
 
-Parser::Parser()
-	: m_Lexer(nullptr)
+AbsTerm::AbsTerm(Loc loc, Var var)
+	: loc(loc)
+	, var(var)
+	, body(newNilTerm())
+{}
+
+AbsTerm::AbsTerm(AbsTerm &&other)
+	: loc(other.loc)
+	, var(other.var)
+	, body(std::move(other.body))
 {
 }
+
+AbsTerm &AbsTerm::operator=(AbsTerm &&other)
+{
+	loc = other.loc;
+	var = other.var;
+	body = std::move(other.body);
+
+	return *this;
+}
+
+AppTerm::AppTerm()
+	: loc()
+	, arg(newNilTerm())
+	, body(newNilTerm())
+{}
+
+AppTerm::AppTerm(Loc loc)
+	: loc(loc)
+	, arg(newNilTerm())
+	, body(newNilTerm())
+{}
+
+AppTerm::AppTerm(AppTerm &&other)
+	: loc(other.loc)
+	, arg(std::move(other.arg))
+	, body(std::move(other.body))
+{
+}
+
+AppTerm &AppTerm::operator=(AppTerm &&other)
+{
+	loc = other.loc;
+	arg = std::move(other.arg);
+	body = std::move(other.body);
+
+	return *this;
+}
+
+Parser::Parser() : m_Lexer(nullptr) {}
 
 Program Parser::parse(const std::string &programSrc)
 {
@@ -67,84 +152,119 @@ Program Parser::parse(const std::string &programSrc)
 	m_Lexer = std::make_unique<Lexer>(iss);
 
 	Program program;
-	program.setEntry(parseMain().value_or(Term(Term::Nil, NilTerm())));
+	auto funcDefs = parseFuncDefs();
+	auto it = funcDefs.find("main");
+	if (it != funcDefs.end())
+	{
+		program.setEntry(Term(std::move(it->second)));
+	}
+	else
+	{
+		parseError(
+			"Could not find function declaration for 'main'."
+		);
+	}
 
 	return program;
 }
 
-std::optional<Term> Parser::parseMain()
+std::unordered_map<std::string, Term> Parser::parseFuncDefs()
 {
-	if (m_Lexer->getToken() == Token::Id)
+	std::unordered_map<std::string, Term> funcDefs;
+
+	while (m_Lexer->getToken() != Token::Eof)
 	{
-		std::string id = m_Lexer->getTokenText();
-
-		m_Lexer->advance();
-
-		if (id == "main")
+		if (m_Lexer->getToken() == Token::Id)
 		{
-			if (m_Lexer->getToken() == Token::StaticFuncDec)
+			std::string id = m_Lexer->getTokenBuffer();
+
+			m_Lexer->advance();
+
+			if (m_Lexer->getToken() == Token::Eql)
 			{
 				m_Lexer->advance();
 
 				if (auto termOpt = parseTerm())
 				{
-					Term term = termOpt.value();
-					return term;
+					if (m_Lexer->getToken() == Token::SemiColon)
+					{
+						m_Lexer->advance();
+
+						funcDefs.emplace(id, std::move(termOpt.value()));
+					}
+					else
+					{
+						parseError(
+							"Expected ';' after function defintion for '" + id + "'.",
+							m_Lexer.get()
+						);
+					}
 				}
 				else
 				{
-					std::cerr << "[Parse Error] Expected function definition but got '" << m_Lexer->getCompleteBuffer() << "' instead." << std::endl;
+					parseError(
+						"Expected function definition after function declaration for '" + id + "'.",
+						m_Lexer.get()
+					);
 				}
 			}
+			else
+			{
+				parseError(
+					"Expected function defintion for function declaration for '" + id + "'.",
+					m_Lexer.get()
+				);
+			}
 		}
+		else
+			{
+				parseError(
+					"Expected name for function declaration.",
+					m_Lexer.get()
+				);
+			}
 	}
 
-	return std::nullopt;
+	return funcDefs;
 }
 
-std::optional<Term> Parser::parseTerm()
+std::optional<Term> Parser::parseTerm(bool handleErrors)
 {
-	if (m_Lexer->getToken() == Token::Nil)
+	if (m_Lexer->getToken() == Token::SemiColon)
+	{
+		return Term(NilTerm());
+	}
+	else if (m_Lexer->getToken() == Token::Astx)
 	{
 		m_Lexer->advance();
 
-		return Term(Term::Nil, NilTerm());
-	}
-	else if (m_Lexer->getToken() == Token::Eof)
-	{
-		return Term(Term::Nil, NilTerm());
-	}
+		return Term(NilTerm());
+	} 
 	else if (auto absOpt = parseAbstraction())
 	{
-		AbsTerm abs = absOpt.value();
-		return Term(Term::Abs, abs);
+		return Term(std::move(absOpt.value()));
 	}
 	else if (auto appOpt = parseApplication())
 	{
-		AppTerm app = appOpt.value();
-		return Term(Term::App, app);
+		return Term(std::move(appOpt.value()));
 	}
 	else if (m_Lexer->getToken() == Token::Id)
 	{
-		std::string id = m_Lexer->getTokenText();
+		std::string id = m_Lexer->getTokenBuffer();
 
 		m_Lexer->advance();
 
 		if (auto absOpt = parseAbstraction(Loc(id)))
 		{
-			AbsTerm abs = absOpt.value();
-			return Term(Term::Abs, abs);
+			return Term(std::move(absOpt.value()));
 		}
 		else if (auto appOpt = parseApplication(Loc(id)))
 		{
-			AppTerm app = appOpt.value();
-			return Term(Term::App, app);
+			return Term(std::move(appOpt.value()));
 		}
 		else
 		{
-			VarContTerm varCont;
-			varCont.var = Var(id);
-			varCont.body = new Term(Term::Nil, NilTerm());
+			VarContTerm varCont(id);
 
 			if (m_Lexer->getToken() == Token::Dot)
 			{
@@ -152,30 +272,27 @@ std::optional<Term> Parser::parseTerm()
 
 				if (auto bodyOpt = parseTerm())
 				{
-					Term body = bodyOpt.value();
-					varCont.body = new Term(body);
+					*varCont.body = Term(std::move(bodyOpt.value()));
 				}
 				else
 				{
-					parseError("Expected term or nothing.", *m_Lexer);
+					parseError("Expected term or nothing.", m_Lexer.get());
 				}
 			}
 
-			return Term(Term::VarCont, varCont);
+			return Term(std::move(varCont));
 		}
 	}
 	else if (m_Lexer->getToken() == Token::True)
 	{
 		m_Lexer->advance();
 		
-		// true := <x>.<y>.x
+		// true := <a>.<b>.a
 
-		std::string varx = varGenerator(); // x
-		std::string vary = varGenerator(); // y
+		std::string vara = varGenerator(); // a
+		std::string varb = varGenerator(); // b
 
-		VarContTerm varxCont; // x
-		varxCont.var = varx;
-		varxCont.body = new Term(Term::Nil, NilTerm());
+		VarContTerm varaCont(vara); // a
 
 		if (m_Lexer->getToken() == Token::Dot)
 		{
@@ -183,8 +300,7 @@ std::optional<Term> Parser::parseTerm()
 
 			if (auto bodyOpt = parseTerm())
 			{
-				Term body = bodyOpt.value();
-				varxCont.body = new Term(body);
+				*varaCont.body = Term(std::move(bodyOpt.value()));
 			}
 		}
 		else
@@ -193,80 +309,28 @@ std::optional<Term> Parser::parseTerm()
 			    m_Lexer->getToken() != Token::Rab &&
 				m_Lexer->getToken() != Token::Rsb)
 			{
-				parseError("Expected term or nothing after 'true''.", *m_Lexer);
+				parseError("Expected term or nothing after 'false''.", m_Lexer.get());
 			}
 		}
 
-		AbsTerm absy; // <y>
-		absy.loc = k_DefaultLoc;
-		absy.var = vary;
-		absy.body = new Term(Term::VarCont, varxCont);
+		AbsTerm absb(k_DefaultLoc, varb); // <b>
+		*absb.body = Term(std::move(varaCont));
 
-		AbsTerm absx; // <x>
-		absx.loc = k_DefaultLoc;
-		absx.var = varx;
-		absx.body = new Term(Term::Abs, absy);
+		AbsTerm absa(k_DefaultLoc, vara); // <a>
+		*absa.body = Term(std::move(absb));
 
-		return Term(Term::Abs, absx);
+		return Term(std::move(absa));
 	}
 	else if (m_Lexer->getToken() == Token::False)
 	{
 		m_Lexer->advance();
 
-		// false := <x>.<y>.y
+		// false := <a>.<b>.b
 
-		std::string varx = varGenerator(); // x
-		std::string vary = varGenerator(); // y
-
-		VarContTerm varyCont; // y
-		varyCont.var = vary;
-		varyCont.body = new Term(Term::Nil, NilTerm());
-
-		if (m_Lexer->getToken() == Token::Dot)
-		{
-			m_Lexer->advance();
-
-			if (auto bodyOpt = parseTerm())
-			{
-				Term body = bodyOpt.value();
-				varyCont.body = new Term(body);
-			}
-		}
-		else
-		{
-			if (m_Lexer->getToken() != Token::Eof &&
-			    m_Lexer->getToken() != Token::Rab &&
-				m_Lexer->getToken() != Token::Rsb)
-			{
-				parseError("Expected term or nothing after 'false''.", *m_Lexer);
-			}
-		}
-
-		AbsTerm absy; // <y>
-		absy.loc = k_DefaultLoc;
-		absy.var = vary;
-		absy.body = new Term(Term::VarCont, varyCont);
-
-		AbsTerm absx; // <x>
-		absx.loc = k_DefaultLoc;
-		absx.var = varx;
-		absx.body = new Term(Term::Abs, absy);
-
-		return Term(Term::Abs, absx);
-	}
-	else if (m_Lexer->getToken() == Token::IfFunc)
-	{
-		m_Lexer->advance();
-
-		// if := <p>.<a>.<b>.[b].[a].p
-
-		std::string varp = varGenerator(); // p
 		std::string vara = varGenerator(); // a
 		std::string varb = varGenerator(); // b
 
-		VarContTerm varpCont; // p
-		varpCont.var = varp;
-		varpCont.body = new Term(Term::Nil, NilTerm());
+		VarContTerm varbCont(varb); // b
 
 		if (m_Lexer->getToken() == Token::Dot)
 		{
@@ -274,8 +338,7 @@ std::optional<Term> Parser::parseTerm()
 
 			if (auto bodyOpt = parseTerm())
 			{
-				Term body = bodyOpt.value();
-				varpCont.body = new Term(body);
+				*varbCont.body = Term(std::move(bodyOpt.value()));
 			}
 		}
 		else
@@ -284,92 +347,21 @@ std::optional<Term> Parser::parseTerm()
 			    m_Lexer->getToken() != Token::Rab &&
 				m_Lexer->getToken() != Token::Rsb)
 			{
-				parseError("Expected term or nothing after 'if''.", *m_Lexer);
+				parseError("Expected term or nothing after 'false''.", m_Lexer.get());
 			}
 		}
 
-		VarContTerm varaCont; // a
-		varaCont.var = vara;
-		varaCont.body = new Term(Term::Nil, NilTerm());
+		AbsTerm absb(k_DefaultLoc, varb); // <b>
+		*absb.body = Term(std::move(varbCont));
 
-		VarContTerm varbCont; // b
-		varbCont.var = varb;
-		varbCont.body = new Term(Term::Nil, NilTerm());
+		AbsTerm absa(k_DefaultLoc, vara); // <a>
+		*absa.body = Term(std::move(absb));
 
-		AppTerm appa;
-		appa.loc = k_DefaultLoc;
-		appa.arg = new Term(Term::VarCont, varaCont);
-		appa.body =  new Term(Term::VarCont, varpCont);
-
-		AppTerm appb;
-		appb.loc = k_DefaultLoc;
-		appb.arg = new Term(Term::VarCont, varbCont);
-		appb.body = new Term(Term::App, appa);
-
-		AbsTerm absb; // <b>
-		absb.loc = k_DefaultLoc;
-		absb.var = varb;
-		absb.body = new Term(Term::App, appb);
-
-		AbsTerm absa; // <a>
-		absa.loc = k_DefaultLoc;
-		absa.var = vara;
-		absa.body = new Term(Term::Abs, absb);
-
-		AbsTerm absp; // <p>
-		absp.loc = k_DefaultLoc;
-		absp.var = varp;
-		absp.body = new Term(Term::Abs, absa);
-
-		return Term(Term::Abs, absp);
+		return Term(std::move(absa));
 	}
-	else if (m_Lexer->getToken() == Token::PrintFunc)
+	else if (handleErrors)
 	{
-		m_Lexer->advance();
-
-		// print := <x>.out[x]
-
-		std::string varx = varGenerator(); // x
-
-		VarContTerm varxCont; // x
-		varxCont.var = varx;
-		varxCont.body = new Term(Term::Nil, NilTerm());
-
-		AppTerm app; // out[x]
-		app.loc = k_OutputLoc;
-		app.arg = new Term(Term::VarCont, varxCont);
-		app.body = new Term(Term::Nil, NilTerm());
-
-		if (m_Lexer->getToken() == Token::Dot)
-		{
-			m_Lexer->advance();
-
-			if (auto bodyOpt = parseTerm())
-			{
-				Term body = bodyOpt.value();
-				app.body = new Term(body);
-			}
-		}
-		else
-		{
-			if (m_Lexer->getToken() != Token::Eof &&
-			    m_Lexer->getToken() != Token::Rab &&
-				m_Lexer->getToken() != Token::Rsb)
-			{
-				parseError("Expected term or nothing after 'print'.", *m_Lexer);
-			}
-		}
-
-		AbsTerm abs; // <x>
-		abs.loc = k_DefaultLoc;
-		abs.var = varx;
-		abs.body = new Term(Term::App, app);
-
-		return Term(Term::Abs, abs);
-	}
-	else
-	{
-		parseError("Expected term.", *m_Lexer);
+		parseError("Expected term.", m_Lexer.get());
 	}
 
 	return std::nullopt;
@@ -383,7 +375,7 @@ std::optional<AbsTerm> Parser::parseAbstraction(Loc loc)
 
 		if (m_Lexer->getToken() == Token::Id)
 		{
-			std::string id = m_Lexer->getTokenText();
+			std::string id = m_Lexer->getTokenBuffer();
 
 			m_Lexer->advance();
 
@@ -391,10 +383,7 @@ std::optional<AbsTerm> Parser::parseAbstraction(Loc loc)
 			{
 				m_Lexer->advance();
 
-				AbsTerm abs;
-				abs.loc = loc;
-				abs.var = id;
-				abs.body = new Term(Term::Nil, NilTerm());
+				AbsTerm abs(loc, id);
 
 				if (m_Lexer->getToken() == Token::Dot)
 				{
@@ -402,8 +391,7 @@ std::optional<AbsTerm> Parser::parseAbstraction(Loc loc)
 
 					if (auto bodyOpt = parseTerm())
 					{
-						Term body = bodyOpt.value();
-						abs.body = new Term(body);
+						*abs.body = Term(std::move(bodyOpt.value()));
 					}
 				}
 
@@ -411,12 +399,12 @@ std::optional<AbsTerm> Parser::parseAbstraction(Loc loc)
 			}
 			else
 			{
-				parseError("Expected closing '>' for abstraction.", *m_Lexer);
+				parseError("Expected closing '>' after abstraction.", m_Lexer.get());
 			}
 		}
 		else
 		{
-			parseError("Expected variable for abstraction.", *m_Lexer);
+			parseError("Expected binding variable for abstraction.", m_Lexer.get());
 		}
 	}
 
@@ -429,18 +417,14 @@ std::optional<AppTerm> Parser::parseApplication(Loc loc)
 	{
 		m_Lexer->advance();
 
-		if (auto argOpt = parseTerm())
+		if (auto argOpt = parseTerm(false))
 		{
-			Term arg = argOpt.value();
-
 			if (m_Lexer->getToken() == Token::Rsb)
 			{
 				m_Lexer->advance();
 
-				AppTerm app;
-				app.loc = loc;
-				app.arg = new Term(arg);
-				app.body = new Term(Term::Nil, NilTerm());
+				AppTerm app(loc);
+				*app.arg = Term(std::move(argOpt.value()));
 
 				if (m_Lexer->getToken() == Token::Dot)
 				{
@@ -448,8 +432,7 @@ std::optional<AppTerm> Parser::parseApplication(Loc loc)
 
 					if (auto bodyOpt = parseTerm())
 					{
-						Term body = bodyOpt.value();
-						app.body = new Term(body);
+						*app.body = Term(std::move(bodyOpt.value()));
 					}
 				}
 
@@ -457,8 +440,12 @@ std::optional<AppTerm> Parser::parseApplication(Loc loc)
 			}
 			else
 			{
-				parseError("Expected closing ']' for application.", *m_Lexer);
+				parseError("Expected closing ']' after application.", m_Lexer.get());
 			}
+		}
+		else
+		{
+			parseError("Expected inner term for abstraction.", m_Lexer.get());
 		}
 	}
 

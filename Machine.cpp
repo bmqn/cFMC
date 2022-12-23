@@ -1,165 +1,228 @@
 #include "Machine.hpp"
 
-Scope_t createScope(const Term *term)
+#include <sstream>
+
+std::string stringifyTerm(const Term &term)
 {
-	return std::make_pair(term, BoundVars_t());
-}
+	std::stringstream termSs;
+	const Term *termPtr = nullptr;
 
-Machine::Machine()
-{
-	static Term zero(Term::VarCont, VarContTerm(Var("0")));
-	static Term two(Term::VarCont, VarContTerm(Var("2")));
-	static Term seven(Term::VarCont, VarContTerm(Var("7")));
-
-	m_Stacks[std::string(k_DefaultLoc)].push_back(&zero);
-	m_Stacks[std::string(k_RandomLoc)].push_back(&two);
-	m_Stacks[std::string(k_RandomLoc)].push_back(&seven);
-}
-
-void Machine::execute(const Program &program)
-{
-	m_Scope.push(createScope(program.getEntry()));
-
-	while (!m_Scope.empty())
+	switch (term.kind())
 	{
-		auto &[term, boundVars] = m_Scope.top();
+	case Term::Nil:
+	{
+		termSs << "*";
+		break;
+	}
+	case Term::VarCont:
+	{
+		const VarContTerm &varCont = term.asVarCont();
+		termSs << varCont.var.var << " . ";
+		termPtr = varCont.body.get();
+		break;
+	}
+	case Term::Abs:
+	{
+		const AbsTerm &abs = term.asAbs();
+		if (abs.loc != k_DefaultLoc)
+		{
+			termSs << abs.loc.loc;
+		}
+		termSs << "<" << abs.var.var << "> . ";
+		termPtr = abs.body.get();
+		break;
+	}
+	case Term::App:
+	{
+		const AppTerm &app = term.asApp();
+		if (app.loc != k_DefaultLoc)
+		{
+			termSs << app.loc.loc;
+		}
+		termSs << "[" << stringifyTerm(*app.arg) << "] . ";
+		termPtr = app.body.get();
+		break;
+	}
+	}
 
-		switch (term->kind())
+	while (termPtr)
+	{
+		switch (termPtr->kind())
 		{
 		case Term::Nil:
 		{
-			m_Scope.pop();
+			termSs << "*";
+			termPtr = nullptr;
 			break;
 		}
 		case Term::VarCont:
 		{
-			VarContTerm varCont = term->term<VarContTerm>();
-
-			auto it = boundVars.find(varCont.var);
-			if (it != boundVars.end())
-			{
-				term = varCont.body;
-				m_Scope.push(createScope(it->second));
-			}
-			else
-			{
-				term = varCont.body;
-			}
-
+			const VarContTerm &varCont = termPtr->asVarCont();
+			termSs << varCont.var.var << " . ";
+			termPtr = varCont.body.get();
 			break;
 		}
 		case Term::Abs:
 		{
-			AbsTerm abs = term->term<AbsTerm>();
-			
-			boundVars[abs.var] = m_Stacks[abs.loc].back();
-			m_Stacks[abs.loc].pop_back();
-			term = abs.body;
-
+			const AbsTerm &abs = termPtr->asAbs();
+			if (abs.loc != k_DefaultLoc)
+			{
+				termSs << abs.loc.loc;
+			}
+			termSs << "<" << abs.var.var << "> . ";
+			termPtr = abs.body.get();
 			break;
 		}
 		case Term::App:
 		{
-			AppTerm app = term->term<AppTerm>();
-			
-			if (app.arg->kind() == Term::VarCont)
+			const AppTerm &app = termPtr->asApp();
+			if (app.loc != k_DefaultLoc)
 			{
-				VarContTerm varCont = app.arg->term<VarContTerm>();
-				auto it = boundVars.find(varCont.var);
-				if (it != boundVars.end())
-				{
-					m_Stacks[app.loc].push_back(it->second);
-					term = app.body;
-					break;
-				}
+				termSs << app.loc.loc;
 			}
-
-			m_Stacks[app.loc].push_back(app.arg);
-			term = app.body;
-
+			termSs << "[" << stringifyTerm(*app.arg) << "] . ";
+			termPtr = app.body.get();
 			break;
 		}
 		}
 	}
+
+	return termSs.str();
 }
 
-void Machine::printDebug()
+Machine::Machine()
 {
-	// std::cout << std::endl << "--- Binds ----" << std::endl;
+	static Term zero(VarContTerm(Var(std::string_view("0"))));
+	static Term two(VarContTerm(Var(std::string_view("2"))));
+	static Term seven(VarContTerm(Var(std::string_view("7"))));
+	static Term nine(VarContTerm(Var(std::string_view("9"))));
 
-	// for (auto it = m_Bound.begin(); it != m_Bound.end(); ++it)
-	// {
-	// 	const Term *term = it->second;
+	m_Stacks[std::string(k_DefaultLoc)].push_back(&zero);
+	m_Stacks[std::string(k_RandomLoc)].push_back(&two);
+	m_Stacks[std::string(k_RandomLoc)].push_back(&seven);
+	m_Stacks[std::string(k_RandomLoc)].push_back(&nine);
+}
 
-	// 	switch (term->kind())
-	// 	{
-	// 	case Term::Nil:
-	// 	{
-	// 		std::cout << it->first << " -> " << "*" << std::endl;
-	// 		break;
-	// 	}
-	// 	case Term::VarCont:
-	// 	{
-	// 		VarContTerm varCont = term->term<VarContTerm>();
-	// 		std::cout << it->first << " -> " << varCont.var << std::endl;
-	// 		break;
-	// 	}
-	// 	case Term::Abs:
-	// 	{
-	// 		std::cout << it->first << " -> " << "Abs" << std::endl;
-	// 		break;
-	// 	}
-	// 	case Term::App:
-	// 	{
-	// 		std::cout << it->first << " -> " << "App" << std::endl;
-	// 		break;
-	// 	}
-	// 	}
-	// }
-
-	// std::cout << "--------------" << std::endl;
-
-	std::cout << std::endl << "--- Locations ---" << std::endl;
-
-	for (auto itMap = m_Stacks.begin(); itMap != m_Stacks.end(); ++itMap)
+void Machine::execute(const Program &program)
+{
+	if (auto entryPtr = program.getEntry().lock())
 	{
-		std::cout << itMap->first.loc << std::endl;
-		for (auto itVec = itMap->second.begin(); itVec != itMap->second.end(); ++itVec)
+		std::stack<std::pair<const Term *, BoundVars_t>> frame;
+		frame.push(std::make_pair(entryPtr.get(), BoundVars_t()));
+
+		std::unordered_map<const Term *, BoundVars_t> env;
+
+		while (!frame.empty())
 		{
-			const Term *term = *itVec;
+			auto &[term, bound] = frame.top();
 
 			switch (term->kind())
 			{
 			case Term::Nil:
 			{
-				std::cout << "    " << "*" << std::endl;
+				frame.pop();
+
 				break;
 			}
 			case Term::VarCont:
 			{
-				VarContTerm varCont = term->term<VarContTerm>();
-				std::cout << "    " << varCont.var.var << std::endl;
+				const VarContTerm &varCont = term->asVarCont();
+
+				term = varCont.body.get();
+
+				auto itBound = bound.find(varCont.var);
+				if (itBound != bound.end())
+				{
+					auto ItEnv = env.find(itBound->second);
+					if (ItEnv != env.end())
+					{
+						frame.push(std::make_pair(itBound->second, ItEnv->second));
+					}
+					else
+					{
+						std::cout << "[INFO] Variable '" << varCont.var.var << "' "
+							<< "is bound to '" << stringifyTerm(*itBound->second) << "' "
+							<< "but did not have an environment binding ! "
+							<< "Be weary of variable capture !"
+							<< std::endl;
+
+						frame.push(std::make_pair(itBound->second, bound));
+					}
+				}
+				else
+				{
+					std::cout << "[INFO] Variable '" << varCont.var.var << "' "
+						<< "is not bound to anything !"
+						<< std::endl;
+				}
+
 				break;
 			}
 			case Term::Abs:
 			{
-				std::cout << "    " << "Abs" << std::endl;
+				const AbsTerm &abs = term->asAbs();
+
+				term = abs.body.get();
+
+				bound[abs.var] = m_Stacks[abs.loc].back();
+				m_Stacks[abs.loc].pop_back();
+
 				break;
 			}
 			case Term::App:
 			{
-				std::cout << "    " << "App" << std::endl;
+				const AppTerm &app = term->asApp();
+				
+				term = app.body.get();
+
+				const Term *toPush = app.arg.get();
+				if (app.arg->kind() == Term::VarCont)
+				{
+					const VarContTerm &varCont = app.arg->asVarCont();
+					auto it = bound.find(varCont.var);
+					if (it != bound.end())
+					{
+						toPush = it->second;
+					}
+				}
+				m_Stacks[app.loc].push_back(toPush);
+				env[toPush] = bound;
+
 				break;
 			}
 			}
 		}
+	}
+	else
+	{
+		std::cerr << "[Machine Error] Given program has an invalid (expired) program !" << std::endl;
+		return;
+	}
+}
 
-		auto itMapCopy = itMap;
-		if (!(++itMapCopy == m_Stacks.end()))
+void Machine::printDebug()
+{
+	std::cout << "------------------" << std::endl;
+	std::cout << "      Debug       " << std::endl;
+	std::cout << "------------------" << std::endl;
+	std::cout << "--- Locations ---" << std::endl;
+
+	for (auto itStacks = m_Stacks.begin(); itStacks != m_Stacks.end(); ++itStacks)
+	{
+		std::cout << itStacks->first.loc << std::endl;
+
+		for (auto itStack = itStacks->second.begin(); itStack != itStacks->second.end(); ++itStack)
+		{
+			const auto &term = *itStack;
+			std::cout << "    " << stringifyTerm(*term) << std::endl;
+		}
+
+		auto itStacksCopy = itStacks;
+		if (!(++itStacksCopy == m_Stacks.end()))
 		{
 			std::cout << std::endl;
 		}
 	}
 
-	std::cout << "--------------" << std::endl;
+	std::cout << "------------------" << std::endl;
 }
