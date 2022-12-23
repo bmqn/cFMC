@@ -7,7 +7,7 @@ Main.cpp
 Lexer.cpp Parser.cpp Machine.cpp
 "
 echo 'Compiling...'
-c++ -std=c++17 -o build/cfmc $SRC_FILES
+c++ -std=c++20 -o build/cfmc $SRC_FILES
 
 echo 'Running...'
 ./build/cfmc
