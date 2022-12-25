@@ -15,10 +15,13 @@ int main()
 	std::string ex5 = "main = rnd<x> . [out[x]] . <f> . f . [hello] . <x> . f . [x];";
 	std::string ex6 = "main = rnd<x> . [out[x]] . <f> . f . [hello] . f . [x];";
 	std::string ex7 = "main = [rnd<x> . out[x]] . <y> . rnd<x> . [out[x] . y] . <f> . f . [hello] . <x> . f . [x];";
+	std::string ex8 = "main = [rnd<x> . out[x]] . <x> . [x] . x . x . rnd[hello] . x;";
 
 	Parser parser;
+	Program program = parser.parse(ex8);
+
 	Machine machine;
-	machine.execute(parser.parse(ex7));
+	machine.execute(program);
 	machine.printDebug();
 
 	return 0;

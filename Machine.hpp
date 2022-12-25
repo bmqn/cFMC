@@ -20,7 +20,7 @@ class Machine
 public:
 	Machine();
 
-	void execute(const Program &program);
+	void execute(Program &program);
 	void printDebug();
 
 private:

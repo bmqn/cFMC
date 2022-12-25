@@ -12,6 +12,7 @@ std::string stringifyTerm(const Term &term)
 	case Term::Nil:
 	{
 		termSs << "*";
+		termPtr = nullptr;
 		break;
 	}
 	case Term::VarCont:
@@ -103,7 +104,7 @@ Machine::Machine()
 	m_Stacks[std::string(k_RandomLoc)].push_back(&nine);
 }
 
-void Machine::execute(const Program &program)
+void Machine::execute(Program &program)
 {
 	if (auto entryPtr = program.getEntry().lock())
 	{
