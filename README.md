@@ -5,4 +5,5 @@ A parser and interpreter for the C-like FMC variant discussed in a dissertation 
 # ToDo
 
 - Support brackets
+- Runtime warn reporting, i.e. pushing to rnd, reading from out, etc.
 - Runtime error reporting, i.e. empty stack, invalid location, etc.
