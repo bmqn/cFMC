@@ -206,13 +206,13 @@ void Machine::printDebug()
 	std::cout << "------------------" << std::endl;
 	std::cout << "      Debug       " << std::endl;
 	std::cout << "------------------" << std::endl;
-	std::cout << "--- Locations ---" << std::endl;
+	std::cout << "--- Stacks ---" << std::endl;
 
 	for (auto itStacks = m_Stacks.begin(); itStacks != m_Stacks.end(); ++itStacks)
 	{
 		std::cout << itStacks->first.loc << std::endl;
 
-		for (auto itStack = itStacks->second.begin(); itStack != itStacks->second.end(); ++itStack)
+		for (auto itStack = itStacks->second.rbegin(); itStack != itStacks->second.rend(); ++itStack)
 		{
 			const auto &term = *itStack;
 			std::cout << "    " << stringifyTerm(*term) << std::endl;
