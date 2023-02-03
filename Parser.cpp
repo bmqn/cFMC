@@ -33,31 +33,6 @@ static std::string varGenerator()
 	return str;
 }
 
-static auto newNilTerm()
-{
-	return std::make_unique<Term>(Term(NilTerm()));
-}
-
-static auto newTerm(NilTerm &&term)
-{
-	return std::make_unique<Term>(Term(std::move(term)));
-}
-
-static auto newTerm(VarContTerm &&term)
-{
-	return std::make_unique<Term>(Term(std::move(term)));
-}
-
-static auto newTerm(AbsTerm &&term)
-{
-	return std::make_unique<Term>(Term(std::move(term)));
-}
-
-static auto newTerm(AppTerm &&term)
-{
-	return std::make_unique<Term>(Term(std::move(term)));
-}
-
 static void parseError(std::string message, const Lexer *lexer = nullptr)
 {
 	std::cerr << "[Parse Error] " << message << std::endl;
@@ -78,71 +53,6 @@ static void parseError(std::string message, const Lexer *lexer = nullptr)
 	std::exit(1);
 }
 
-VarContTerm::VarContTerm()
-	: var()
-	, body(newNilTerm())
-{}
-
-VarContTerm::VarContTerm(Var var)
-	: var(var)
-	, body(newNilTerm())
-{}
-
-AbsTerm::AbsTerm()
-	: loc()
-	, var()
-	, body(newNilTerm())
-{}
-
-AbsTerm::AbsTerm(Loc loc, Var var)
-	: loc(loc)
-	, var(var)
-	, body(newNilTerm())
-{}
-
-AbsTerm::AbsTerm(AbsTerm &&other)
-	: loc(other.loc)
-	, var(other.var)
-	, body(std::move(other.body))
-{
-}
-
-AbsTerm &AbsTerm::operator=(AbsTerm &&other)
-{
-	loc = other.loc;
-	var = other.var;
-	body = std::move(other.body);
-
-	return *this;
-}
-
-AppTerm::AppTerm()
-	: loc()
-	, arg(newNilTerm())
-	, body(newNilTerm())
-{}
-
-AppTerm::AppTerm(Loc loc)
-	: loc(loc)
-	, arg(newNilTerm())
-	, body(newNilTerm())
-{}
-
-AppTerm::AppTerm(AppTerm &&other)
-	: loc(other.loc)
-	, arg(std::move(other.arg))
-	, body(std::move(other.body))
-{
-}
-
-AppTerm &AppTerm::operator=(AppTerm &&other)
-{
-	loc = other.loc;
-	arg = std::move(other.arg);
-	body = std::move(other.body);
-
-	return *this;
-}
 
 Parser::Parser() : m_Lexer(nullptr) {}
 
@@ -151,26 +61,13 @@ Program Parser::parse(const std::string &programSrc)
 	std::istringstream iss(programSrc);
 	m_Lexer = std::make_unique<Lexer>(iss);
 
-	Program program;
-	auto funcDefs = parseFuncDefs();
-	auto it = funcDefs.find("main");
-	if (it != funcDefs.end())
-	{
-		program.setEntry(Term(std::move(it->second)));
-	}
-	else
-	{
-		parseError(
-			"Could not find function declaration for 'main'."
-		);
-	}
-
-	return program;
+	FuncDefs_t funcs = parseFuncDefs();
+	return Program(std::move(funcs));
 }
 
-std::unordered_map<std::string, Term> Parser::parseFuncDefs()
+FuncDefs_t Parser::parseFuncDefs()
 {
-	std::unordered_map<std::string, Term> funcDefs;
+	FuncDefs_t funcs;
 
 	while (m_Lexer->getToken() != Token::Eof)
 	{
@@ -190,7 +87,7 @@ std::unordered_map<std::string, Term> Parser::parseFuncDefs()
 					{
 						m_Lexer->advance();
 
-						funcDefs.emplace(id, std::move(termOpt.value()));
+						funcs.emplace(id, std::move(termOpt.value()));
 					}
 					else
 					{
@@ -225,7 +122,7 @@ std::unordered_map<std::string, Term> Parser::parseFuncDefs()
 			}
 	}
 
-	return funcDefs;
+	return funcs;
 }
 
 std::optional<Term> Parser::parseTerm(bool handleErrors)
