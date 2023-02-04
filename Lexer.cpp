@@ -49,9 +49,9 @@ std::ostream &operator<<(std::ostream& os, const Token &token)
 	case Token::Id:
 		os << "Id";
 		break;
-	case Token::IfFunc:
-		os << "IfFunc";
-		break;
+	// case Token::IfFunc:
+	// 	os << "IfFunc";
+	// 	break;
 	case Token::Eof:
 		os << "Eof";
 		break;
@@ -111,7 +111,7 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 
 	m_FullBuffer += c;
 
-	// Eat whitespace
+	// Eat whitespace (includes nl & cr)
 	while (std::isspace(c))
 	{
 		c = m_Input->get();
@@ -174,10 +174,10 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 		{
 			return std::make_pair(Token::False, buffer);
 		}
-		else if (buffer == "if")
-		{
-			return std::make_pair(Token::IfFunc, buffer);
-		}
+		// else if (buffer == "if")
+		// {
+		// 	return std::make_pair(Token::IfFunc, buffer);
+		// }
 		else
 		{
 			return std::make_pair(Token::Id, buffer);

@@ -5,10 +5,10 @@
 Machine::Machine(const FuncDefs_t *funcs)
 	: m_Funcs(funcs)
 {
-	static Term zero = VarContTerm("0");
-	static Term two = VarContTerm("2");
-	static Term seven = VarContTerm("7");
-	static Term nine = VarContTerm("9");
+	static Term zero = ValTerm{0};
+	static Term two = ValTerm{2};
+	static Term seven = ValTerm{7};
+	static Term nine = ValTerm{9};
 
 	m_Stacks[k_DefaultLoc].push_back(&zero);
 	m_Stacks[k_RandomLoc].push_back(&two);
@@ -40,6 +40,11 @@ void Machine::execute()
 
 		switch (term->kind())
 		{
+		case Term::Val:
+		{
+			std::cout << "[INFO] Value term found..." << std::endl;
+			break;
+		}
 		case Term::Nil:
 		{
 			break;
@@ -96,9 +101,29 @@ void Machine::execute()
 		{
 			const AbsTerm &abs = term->asAbs();
 
+			const Term *toPop;
+
+			// Input stream
+			if (abs.loc == k_InputLoc)
+			{
+				std::string in;
+				std::getline(std::cin, in);
+
+				// Need some way to generate 'new' terms without leaking memory :/
+				Parser parser;
+				Term *term = new Term();
+				*term = std::move(parser.parseTerm(in));
+				toPop = term;
+			}
+			// Generic stream
+			else
+			{
+				toPop = m_Stacks[abs.loc].back();
+				m_Stacks[abs.loc].pop_back();
+			}
+
 			// Update global binding context for binding variable
-			bound[abs.var] = m_Stacks[abs.loc].back();
-			m_Stacks[abs.loc].pop_back();
+			bound[abs.var] = toPop;
 
 			// Push continuation term to frame
 			m_Frame.push(std::make_pair(abs.body.get(), bound));
@@ -120,7 +145,18 @@ void Machine::execute()
 					toPush = it->second;
 				}
 			}
-			m_Stacks[app.loc].push_back(toPush);
+
+			// Output stream
+			if (app.loc == k_OutputLoc)
+			{
+				// Basic 'cheaty' implementation
+				std::cout << stringifyTerm(*toPush) << std::endl;
+			}
+			// Generic stream
+			else
+			{
+				m_Stacks[app.loc].push_back(toPush);
+			}
 
 			// Update binding context of argument term
 			m_BindCtx[toPush] = bound;
@@ -136,11 +172,11 @@ void Machine::execute()
 
 void Machine::printDebug()
 {
-	std::cout << "--- Stacks ---" << std::endl;
+	std::cout << "---- Stacks ----" << std::endl;
 
 	for (auto itStacks = m_Stacks.begin(); itStacks != m_Stacks.end(); ++itStacks)
 	{
-		std::cout << itStacks->first.loc << std::endl;
+		std::cout << "  -- " << itStacks->first.loc << std::endl;
 
 		for (auto itStack = itStacks->second.rbegin(); itStack != itStacks->second.rend(); ++itStack)
 		{
@@ -154,5 +190,24 @@ void Machine::printDebug()
 		}
 	}
 
-	std::cout << "------------------" << std::endl;
+	std::cout << "--------------------" << std::endl;
+	std::cout << "--- Bind Context ---" << std::endl;
+
+	for (auto itBindCtx = m_BindCtx.begin(); itBindCtx != m_BindCtx.end(); ++itBindCtx)
+	{
+		std::cout << "  -- Binds for term " << stringifyTerm(*(*itBindCtx).first) << std::endl;
+
+		for (auto itBinds = itBindCtx->second.begin(); itBinds != itBindCtx->second.end(); ++itBinds)
+		{
+			std::cout << "    " << (*itBinds).first.var << " --> " << stringifyTerm(*(*itBinds).second) << std::endl;
+		}
+
+		auto itBindCtxCopy = itBindCtx;
+		if (!(++itBindCtxCopy == m_BindCtx.end()))
+		{
+			std::cout << std::endl;
+		}
+	}
+
+	std::cout << "--------------------" << std::endl;
 }

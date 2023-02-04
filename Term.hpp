@@ -51,6 +51,11 @@ struct VarContTerm;
 struct AbsTerm;
 struct AppTerm;
 
+struct ValTerm
+{
+	uint32_t val;
+};
+
 struct NilTerm
 {
 };
@@ -87,24 +92,31 @@ struct AppTerm
 class Term
 {
 	using Term_t = std::variant<
-		NilTerm, VarContTerm, AbsTerm, AppTerm
+		ValTerm, NilTerm, VarContTerm, AbsTerm, AppTerm
 	>;
 
 public:
 	enum Kind
 	{
-		Nil, VarCont, Abs, App
+		Val, Nil, VarCont, Abs, App
 	};
 
 	Term();
+	Term(const Term &term) = delete;
+	Term(Term &&term) = default;
 
+	Term(ValTerm &&term);
 	Term(NilTerm &&term);
 	Term(VarContTerm &&term);
 	Term(AbsTerm &&term);
 	Term(AppTerm &&term);
 
+	Term &operator=(const Term &term) = delete;
+	Term &operator=(Term &&term) = default;
+
 	Kind kind() const;
 
+	const ValTerm &asVal() const;
 	const NilTerm &asNil() const;
 	const VarContTerm &asVarCont() const;
 	const AbsTerm &asAbs() const;

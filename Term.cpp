@@ -84,6 +84,11 @@ Term::Term()
 	, m_Term(NilTerm())
 {}
 
+Term::Term(ValTerm &&term)
+	: m_Kind(Val)
+	, m_Term(std::move(term))
+{}
+
 Term::Term(NilTerm &&term)
 	: m_Kind(Nil)
 	, m_Term(std::move(term))
@@ -107,6 +112,11 @@ Term::Term(AppTerm &&term)
 Term::Kind Term::kind() const
 {
 	return m_Kind;
+}
+
+const ValTerm &Term::asVal() const
+{
+	return std::get<ValTerm>(m_Term);
 }
 
 const NilTerm &Term::asNil() const

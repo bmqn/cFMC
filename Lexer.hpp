@@ -21,7 +21,7 @@ enum class Token
 	True, // Boolean true
 	False, // Boolean false
 
-	IfFunc, // If function
+	// IfFunc, // If function
 
 	Eof
 };

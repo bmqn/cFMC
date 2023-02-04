@@ -15,7 +15,8 @@ class Parser
 public:
 	Parser();
 
-	Program parse(const std::string &programSrc);
+	Program parseProgram(const std::string &programSrc);
+	Term parseTerm(const std::string &programSrc);
 
 private:
 	FuncDefs_t parseFuncDefs();

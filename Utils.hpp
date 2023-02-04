@@ -4,4 +4,4 @@
 
 #include "Term.hpp"
 
-std::string stringifyTerm(const Term &term);
+std::string stringifyTerm(const Term &term, bool omitNil = true);

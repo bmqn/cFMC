@@ -10,4 +10,4 @@ echo 'Compiling...'
 c++ -std=c++20 -o build/cfmc $SRC_FILES
 
 echo 'Running...'
-./build/cfmc
+stdbuf -oL ./build/cfmc

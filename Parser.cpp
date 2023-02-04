@@ -56,13 +56,26 @@ static void parseError(std::string message, const Lexer *lexer = nullptr)
 
 Parser::Parser() : m_Lexer(nullptr) {}
 
-Program Parser::parse(const std::string &programSrc)
+Program Parser::parseProgram(const std::string &programSrc)
 {
 	std::istringstream iss(programSrc);
 	m_Lexer = std::make_unique<Lexer>(iss);
 
 	FuncDefs_t funcs = parseFuncDefs();
 	return Program(std::move(funcs));
+}
+
+Term Parser::parseTerm(const std::string &programSrc)
+{
+	std::istringstream iss(programSrc);
+	m_Lexer = std::make_unique<Lexer>(iss);
+
+	if (auto termOpt = parseTerm(false))
+	{
+		return std::move(termOpt.value());
+	}
+
+	return Term();
 }
 
 FuncDefs_t Parser::parseFuncDefs()
@@ -92,7 +105,7 @@ FuncDefs_t Parser::parseFuncDefs()
 					else
 					{
 						parseError(
-							"Expected ';' after function defintion for '" + id + "'.",
+							"Expected ';' after function definition for '" + id + "'.",
 							m_Lexer.get()
 						);
 					}
@@ -108,7 +121,7 @@ FuncDefs_t Parser::parseFuncDefs()
 			else
 			{
 				parseError(
-					"Expected function defintion for function declaration for '" + id + "'.",
+					"Expected function definition for function declaration for '" + id + "'.",
 					m_Lexer.get()
 				);
 			}
