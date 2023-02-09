@@ -42,7 +42,9 @@ void Machine::execute()
 		{
 		case Term::Val:
 		{
-			std::cout << "[INFO] Value term found..." << std::endl;
+			std::cout << "[WARN] Value term is being executed by machine ! "
+				<< "Perhaps you forgot to push something to the stack !"
+				<< std::endl;
 			break;
 		}
 		case Term::Nil:
@@ -69,7 +71,7 @@ void Machine::execute()
 				}
 				else
 				{
-					std::cout << "[INFO] Variable '" << varCont.var.var << "' "
+					std::cout << "[WARN] Variable '" << varCont.var.var << "' "
 						<< "is bound to '" << stringifyTerm(*itBound->second) << "' "
 						<< "but did not have an environment binding ! "
 						<< "Be weary of variable capture !"
@@ -89,7 +91,7 @@ void Machine::execute()
 				}
 				else
 				{
-					std::cout << "[INFO] Variable '" << varCont.var.var << "' "
+					std::cout << "[WARN] Variable '" << varCont.var.var << "' "
 						<< "is not bound to anything !"
 						<< std::endl;
 				}

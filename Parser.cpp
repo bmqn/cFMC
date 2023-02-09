@@ -70,9 +70,12 @@ Term Parser::parseTerm(const std::string &programSrc)
 	std::istringstream iss(programSrc);
 	m_Lexer = std::make_unique<Lexer>(iss);
 
-	if (auto termOpt = parseTerm(false))
+	if (m_Lexer->getToken() != Token::Eof)
 	{
-		return std::move(termOpt.value());
+		if (auto termOpt = parseTerm(false))
+		{
+			return std::move(termOpt.value());
+		}
 	}
 
 	return Term();
@@ -94,18 +97,30 @@ FuncDefs_t Parser::parseFuncDefs()
 			{
 				m_Lexer->advance();
 
-				if (auto termOpt = parseTerm())
+				if (m_Lexer->getToken() == Token::Lb)
 				{
-					if (m_Lexer->getToken() == Token::SemiColon)
-					{
-						m_Lexer->advance();
+					m_Lexer->advance();
 
-						funcs.emplace(id, std::move(termOpt.value()));
+					if (auto termOpt = parseTerm())
+					{
+						if (m_Lexer->getToken() == Token::Rb)
+						{
+							m_Lexer->advance();
+
+							funcs.emplace(id, std::move(termOpt.value()));
+						}
+						else
+						{
+							parseError(
+								"Expected ')' after definition of function declaration '" + id + "'.",
+								m_Lexer.get()
+							);
+						}
 					}
 					else
 					{
 						parseError(
-							"Expected ';' after function definition for '" + id + "'.",
+							"Expected definition of function declaration '" + id + "'.",
 							m_Lexer.get()
 						);
 					}
@@ -113,26 +128,26 @@ FuncDefs_t Parser::parseFuncDefs()
 				else
 				{
 					parseError(
-						"Expected function definition after function declaration for '" + id + "'.",
-						m_Lexer.get()
-					);
+								"Expected '(' before definition of function declaration '" + id + "'.",
+								m_Lexer.get()
+							);
 				}
 			}
 			else
 			{
 				parseError(
-					"Expected function definition for function declaration for '" + id + "'.",
+					"Expected '=' after function declaration '" + id + "'.",
 					m_Lexer.get()
 				);
 			}
 		}
 		else
-			{
-				parseError(
-					"Expected name for function declaration.",
-					m_Lexer.get()
-				);
-			}
+		{
+			parseError(
+				"Expected function declaration.",
+				m_Lexer.get()
+			);
+		}
 	}
 
 	return funcs;
@@ -140,7 +155,7 @@ FuncDefs_t Parser::parseFuncDefs()
 
 std::optional<Term> Parser::parseTerm(bool handleErrors)
 {
-	if (m_Lexer->getToken() == Token::SemiColon)
+	if (m_Lexer->getToken() == Token::Eof)
 	{
 		return Term(NilTerm());
 	}
@@ -192,82 +207,6 @@ std::optional<Term> Parser::parseTerm(bool handleErrors)
 
 			return Term(std::move(varCont));
 		}
-	}
-	else if (m_Lexer->getToken() == Token::True)
-	{
-		m_Lexer->advance();
-		
-		// true := <a>.<b>.a
-
-		std::string vara = varGenerator(); // a
-		std::string varb = varGenerator(); // b
-
-		VarContTerm varaCont(vara); // a
-
-		if (m_Lexer->getToken() == Token::Dot)
-		{
-			m_Lexer->advance();
-
-			if (auto bodyOpt = parseTerm())
-			{
-				*varaCont.body = Term(std::move(bodyOpt.value()));
-			}
-		}
-		else
-		{
-			if (m_Lexer->getToken() != Token::Eof &&
-			    m_Lexer->getToken() != Token::Rab &&
-				m_Lexer->getToken() != Token::Rsb)
-			{
-				parseError("Expected term or nothing after 'false''.", m_Lexer.get());
-			}
-		}
-
-		AbsTerm absb(k_DefaultLoc, varb); // <b>
-		*absb.body = Term(std::move(varaCont));
-
-		AbsTerm absa(k_DefaultLoc, vara); // <a>
-		*absa.body = Term(std::move(absb));
-
-		return Term(std::move(absa));
-	}
-	else if (m_Lexer->getToken() == Token::False)
-	{
-		m_Lexer->advance();
-
-		// false := <a>.<b>.b
-
-		std::string vara = varGenerator(); // a
-		std::string varb = varGenerator(); // b
-
-		VarContTerm varbCont(varb); // b
-
-		if (m_Lexer->getToken() == Token::Dot)
-		{
-			m_Lexer->advance();
-
-			if (auto bodyOpt = parseTerm())
-			{
-				*varbCont.body = Term(std::move(bodyOpt.value()));
-			}
-		}
-		else
-		{
-			if (m_Lexer->getToken() != Token::Eof &&
-			    m_Lexer->getToken() != Token::Rab &&
-				m_Lexer->getToken() != Token::Rsb)
-			{
-				parseError("Expected term or nothing after 'false''.", m_Lexer.get());
-			}
-		}
-
-		AbsTerm absb(k_DefaultLoc, varb); // <b>
-		*absb.body = Term(std::move(varbCont));
-
-		AbsTerm absa(k_DefaultLoc, vara); // <a>
-		*absa.body = Term(std::move(absb));
-
-		return Term(std::move(absa));
 	}
 	else if (handleErrors)
 	{

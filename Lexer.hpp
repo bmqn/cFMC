@@ -8,6 +8,7 @@
 
 enum class Token
 {
+	Lb, Rb, // Brackets
 	Lab, Rab, // Angle brackets
 	Lsb, Rsb, // Square brackets
 	
@@ -17,11 +18,6 @@ enum class Token
 	Eql, // Equal sign
 
 	Id, // Identifier, i.e. location name, variable name, function name etc.
-
-	True, // Boolean true
-	False, // Boolean false
-
-	// IfFunc, // If function
 
 	Eof
 };

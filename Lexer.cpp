@@ -22,6 +22,12 @@ std::ostream &operator<<(std::ostream& os, const Token &token)
 {
 	switch (token)
 	{
+	case Token::Lb:
+		os << '(';
+		break;
+	case Token::Rb:
+		os << ')';
+		break;
 	case Token::Lab:
 		os << '<';
 		break;
@@ -49,9 +55,6 @@ std::ostream &operator<<(std::ostream& os, const Token &token)
 	case Token::Id:
 		os << "Id";
 		break;
-	// case Token::IfFunc:
-	// 	os << "IfFunc";
-	// 	break;
 	case Token::Eof:
 		os << "Eof";
 		break;
@@ -93,7 +96,7 @@ void Lexer::advance()
 		}
 		else
 		{
-			lexError("Could not advance the lexer !", *this);
+			lexError("Unrecognised token !", *this);
 		}
 	}
 }
@@ -101,25 +104,36 @@ void Lexer::advance()
 std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 {
 	std::string buffer;
-	char c = m_Input->get();
 
-	// End of stream
-	if (c == std::char_traits<char>::eof())
+	char c = m_Input->get();
+	if (c == std::istream::traits_type::eof())
 	{
 		return std::make_pair(Token::Eof, buffer);
 	}
-
 	m_FullBuffer += c;
-
+	
 	// Eat whitespace (includes nl & cr)
 	while (std::isspace(c))
 	{
 		c = m_Input->get();
+		if (c == std::istream::traits_type::eof())
+		{
+			return std::make_pair(Token::Eof, buffer);
+		}
 		m_FullBuffer += c;
 	}
+
 	buffer += c;
 
-	if (c == '<')
+	if (c == '(')
+	{
+		return std::make_pair(Token::Lb, buffer);
+	}
+	else if (c == ')')
+	{
+		return std::make_pair(Token::Rb, buffer);
+	}
+	else if (c == '<')
 	{
 		return std::make_pair(Token::Lab, buffer);
 	}
@@ -166,22 +180,7 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 		m_Input->putback(c);
 		m_FullBuffer.pop_back();
 
-		if (buffer == "true")
-		{
-			return std::make_pair(Token::True, buffer);
-		}
-		else if (buffer == "false")
-		{
-			return std::make_pair(Token::False, buffer);
-		}
-		// else if (buffer == "if")
-		// {
-		// 	return std::make_pair(Token::IfFunc, buffer);
-		// }
-		else
-		{
-			return std::make_pair(Token::Id, buffer);
-		}
+		return std::make_pair(Token::Id, buffer);
 	}
 
 	return std::nullopt;
