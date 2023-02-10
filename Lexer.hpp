@@ -5,9 +5,12 @@
 #include <string>
 #include <optional>
 #include <utility>
+#include <memory>
 
 enum class Token
 {
+	Nothing, // Represents nothing
+
 	Lb, Rb, // Brackets
 	Lab, Rab, // Angle brackets
 	Lsb, Rsb, // Square brackets
@@ -19,15 +22,13 @@ enum class Token
 
 	Id, // Identifier, i.e. location name, variable name, function name etc.
 
-	Eof
+	Eof // End of line
 };
-
-std::ostream &operator<<(std::ostream& os, const Token &token);
 
 class Lexer
 {
 public:
-	explicit Lexer(std::istream &is);
+	explicit Lexer(const std::string &buffer);
 
 	Lexer(const Lexer &) = delete;
 	Lexer &operator=(const Lexer &) = delete;
@@ -35,9 +36,12 @@ public:
 	Lexer(Lexer &&) = delete;
 	Lexer &operator=(Lexer &&) = delete;
 
-	std::string getFullBuffer() const;
-	std::string getTokenBuffer() const;
+	const std::string &getSource() const;
+
+	const std::string &getBuffer() const;
+
 	Token getToken() const;
+	const std::string &getTokenBuffer() const;
 
 	void advance();
 
@@ -45,9 +49,14 @@ private:
 	std::optional<std::pair<Token, std::string>> nextToken();
 
 private:
-	std::istream *m_Input;
-	
-	std::string m_FullBuffer;
+	std::string m_Source;
+	std::unique_ptr<std::istream> m_Stream;
+
+	std::string m_Buffer;
+
+	Token m_PrevToken;
+	std::string m_PrevTokenBuffer;
+
+	Token m_Token;
 	std::string m_TokenBuffer;
-	Token m_CurrToken;
 };

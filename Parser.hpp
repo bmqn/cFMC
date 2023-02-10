@@ -16,12 +16,12 @@ public:
 	Parser();
 
 	Program parseProgram(const std::string &programSrc);
-	Term parseTerm(const std::string &programSrc);
+	Term parseTerm(const std::string &termSrc);
 
 private:
 	FuncDefs_t parseFuncDefs();
 
-	std::optional<Term> parseTerm(bool handleErrors = true);
+	std::optional<Term> parseTerm();
 	std::optional<AbsTerm> parseAbstraction(Loc loc = k_DefaultLoc);
 	std::optional<AppTerm> parseApplication(Loc loc = k_DefaultLoc);
 

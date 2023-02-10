@@ -1,7 +1,6 @@
 #include "Parser.hpp"
 
 #include <iostream>
-#include <sstream>
 #include <iomanip>
 #include <cstdlib>
 
@@ -33,46 +32,44 @@ static std::string varGenerator()
 	return str;
 }
 
-static void parseError(std::string message, const Lexer *lexer = nullptr)
+static void parseError(std::string message, const Lexer &lexer)
 {
-	std::cerr << "[Parse Error] " << message << std::endl;
+	const std::string &src = lexer.getSource();
+	const std::string &buf = lexer.getBuffer();
+	const std::string &tokenbuf = lexer.getTokenBuffer();
 
-	if (lexer)
-	{
-		std::string buf = lexer->getFullBuffer();
-		int tokenLen = lexer->getTokenBuffer().size();
+	int tokenLen = tokenbuf.size();
 
-		std::string underlineErr;
-		underlineErr += std::string(buf.size() - tokenLen, ' ');
-		underlineErr += std::string("~");
+	std::string err;
+	err += std::string(buf.size() - tokenLen, ' ');
+	err += std::string(tokenLen, '^');
+	err += " ";
+	err += message;
 
-		std::cerr << "    " << buf << std::endl;
-		std::cerr << "    " << underlineErr << std::endl;
-	}
+	std::cerr << "[Parse Error]" << std::endl;
+	std::cerr << "|  " << src << std::endl;
+	std::cerr << "|  " << err << std::endl;
 
 	std::exit(1);
 }
-
 
 Parser::Parser() : m_Lexer(nullptr) {}
 
 Program Parser::parseProgram(const std::string &programSrc)
 {
-	std::istringstream iss(programSrc);
-	m_Lexer = std::make_unique<Lexer>(iss);
+	m_Lexer = std::make_unique<Lexer>(programSrc);
 
 	FuncDefs_t funcs = parseFuncDefs();
 	return Program(std::move(funcs));
 }
 
-Term Parser::parseTerm(const std::string &programSrc)
+Term Parser::parseTerm(const std::string &termSrc)
 {
-	std::istringstream iss(programSrc);
-	m_Lexer = std::make_unique<Lexer>(iss);
+	m_Lexer = std::make_unique<Lexer>(termSrc);
 
 	if (m_Lexer->getToken() != Token::Eof)
 	{
-		if (auto termOpt = parseTerm(false))
+		if (auto termOpt = parseTerm())
 		{
 			return std::move(termOpt.value());
 		}
@@ -111,49 +108,34 @@ FuncDefs_t Parser::parseFuncDefs()
 						}
 						else
 						{
-							parseError(
-								"Expected ')' after definition of function declaration '" + id + "'.",
-								m_Lexer.get()
-							);
+							parseError("Expected ')' after function definition of '" + id + "'", *m_Lexer);
 						}
 					}
 					else
 					{
-						parseError(
-							"Expected definition of function declaration '" + id + "'.",
-							m_Lexer.get()
-						);
+						parseError("Expected term as function definition of '" + id + "'", *m_Lexer);
 					}
 				}
 				else
 				{
-					parseError(
-								"Expected '(' before definition of function declaration '" + id + "'.",
-								m_Lexer.get()
-							);
+					parseError("Expected '(' before function definition of '" + id + "'", *m_Lexer);
 				}
 			}
 			else
 			{
-				parseError(
-					"Expected '=' after function declaration '" + id + "'.",
-					m_Lexer.get()
-				);
+				parseError("Expected '=' after function declaration of '" + id + "'", *m_Lexer);
 			}
 		}
 		else
 		{
-			parseError(
-				"Expected function declaration.",
-				m_Lexer.get()
-			);
+			parseError("Expected function declaration", *m_Lexer);
 		}
 	}
 
 	return funcs;
 }
 
-std::optional<Term> Parser::parseTerm(bool handleErrors)
+std::optional<Term> Parser::parseTerm()
 {
 	if (m_Lexer->getToken() == Token::Eof)
 	{
@@ -201,16 +183,12 @@ std::optional<Term> Parser::parseTerm(bool handleErrors)
 				}
 				else
 				{
-					parseError("Expected term or nothing.", m_Lexer.get());
+					parseError("Expected term (or nothing)", *m_Lexer);
 				}
 			}
 
 			return Term(std::move(varCont));
 		}
-	}
-	else if (handleErrors)
-	{
-		parseError("Expected term.", m_Lexer.get());
 	}
 
 	return std::nullopt;
@@ -248,12 +226,12 @@ std::optional<AbsTerm> Parser::parseAbstraction(Loc loc)
 			}
 			else
 			{
-				parseError("Expected closing '>' after abstraction.", m_Lexer.get());
+				parseError("Expected closing '>' of abstraction", *m_Lexer);
 			}
 		}
 		else
 		{
-			parseError("Expected binding variable for abstraction.", m_Lexer.get());
+			parseError("Expected binding variable of abstraction", *m_Lexer);
 		}
 	}
 
@@ -266,7 +244,7 @@ std::optional<AppTerm> Parser::parseApplication(Loc loc)
 	{
 		m_Lexer->advance();
 
-		if (auto argOpt = parseTerm(false))
+		if (auto argOpt = parseTerm())
 		{
 			if (m_Lexer->getToken() == Token::Rsb)
 			{
@@ -289,12 +267,12 @@ std::optional<AppTerm> Parser::parseApplication(Loc loc)
 			}
 			else
 			{
-				parseError("Expected closing ']' after application.", m_Lexer.get());
+				parseError("Expected closing ']' of application", *m_Lexer);
 			}
 		}
 		else
 		{
-			parseError("Expected inner term for abstraction.", m_Lexer.get());
+			parseError("Expected inner term of application", *m_Lexer);
 		}
 	}
 

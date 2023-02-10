@@ -1,97 +1,72 @@
 #include "Lexer.hpp"
 
 #include <iostream>
+#include <sstream>
 
 static void lexError(std::string message, const Lexer &lexer)
 {
-	std::string buf = lexer.getFullBuffer();
-	int tokenLen = lexer.getTokenBuffer().size();
+	const std::string &src = lexer.getSource();
+	const std::string &buf = lexer.getBuffer();
+	const std::string &tokenbuf = lexer.getTokenBuffer();
 
-	std::string underlineErr;
-	underlineErr += std::string(buf.size() - tokenLen, ' ');
-	underlineErr += std::string("~");
+	int tokenLen = tokenbuf.size();
 
-	std::cerr << "[Lex Error] " << message << std::endl;
-	std::cerr << "    " << buf << std::endl;
-	std::cerr << "    " << underlineErr << std::endl;
+	std::string err;
+	err += std::string(buf.size() - tokenLen, ' ');
+	err += std::string(tokenLen, '^');
+	err += " ";
+	err += message;
+
+	std::cerr << "[Lex Error]" << std::endl;
+	std::cerr << "|  " << src << std::endl;
+	std::cerr << "|  " << err << std::endl;
 
 	std::exit(1);
 }
 
-std::ostream &operator<<(std::ostream& os, const Token &token)
+Lexer::Lexer(const std::string &buffer)
+	: m_Stream(nullptr)
+	, m_PrevToken(Token::Nothing)
+	, m_Token(Token::Nothing)
 {
-	switch (token)
-	{
-	case Token::Lb:
-		os << '(';
-		break;
-	case Token::Rb:
-		os << ')';
-		break;
-	case Token::Lab:
-		os << '<';
-		break;
-	case Token::Rab:
-		os << '>';
-		break;
-	case Token::Lsb:
-		os << '[';
-		break;
-	case Token::Rsb:
-		os << ']';
-		break;
-	case Token::Astx:
-		os << '*';
-		break;
-	case Token::Dot:
-		os << '.';
-		break;
-	case Token::SemiColon:
-		os << ';';
-		break;
-	case Token::Eql:
-		os << '=';
-		break;
-	case Token::Id:
-		os << "Id";
-		break;
-	case Token::Eof:
-		os << "Eof";
-		break;
-	}
+	m_Source = buffer;
+	m_Stream = std::make_unique<std::istringstream>(m_Source);
 
-	return os;
-}
-
-Lexer::Lexer(std::istream &is)
-	: m_Input(&is)
-{
 	advance();
 }
 
-std::string Lexer::getFullBuffer() const
+const std::string &Lexer::getSource() const
 {
-	return m_FullBuffer;
+	return m_Source;
 }
 
-std::string Lexer::getTokenBuffer() const
+const std::string &Lexer::getBuffer() const
 {
-	return m_TokenBuffer;
+	return m_Buffer;
 }
 
 Token Lexer::getToken() const
 {
-	return m_CurrToken;
+	return m_Token;
+}
+
+const std::string &Lexer::getTokenBuffer() const
+{
+	return m_TokenBuffer;
 }
 
 void Lexer::advance()
 {
-	if (m_CurrToken != Token::Eof)
+	if (m_Token != Token::Eof)
 	{
 		if (auto nextOpt = nextToken())
 		{
+			m_PrevToken = m_Token;
+			m_PrevTokenBuffer = m_TokenBuffer;
+
 			auto [token, buffer] = nextOpt.value();
-			m_CurrToken = token;
+
+			m_Token = token;
 			m_TokenBuffer = buffer;
 		}
 		else
@@ -105,22 +80,22 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 {
 	std::string buffer;
 
-	char c = m_Input->get();
+	char c = m_Stream->get();
 	if (c == std::istream::traits_type::eof())
 	{
 		return std::make_pair(Token::Eof, buffer);
 	}
-	m_FullBuffer += c;
+	m_Buffer += c;
 	
 	// Eat whitespace (includes nl & cr)
 	while (std::isspace(c))
 	{
-		c = m_Input->get();
+		c = m_Stream->get();
 		if (c == std::istream::traits_type::eof())
 		{
 			return std::make_pair(Token::Eof, buffer);
 		}
-		m_FullBuffer += c;
+		m_Buffer += c;
 	}
 
 	buffer += c;
@@ -168,17 +143,17 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 	
 	if (std::isalpha(c))
 	{
-		c = m_Input->get();
-		m_FullBuffer += c;
+		c = m_Stream->get();
+		m_Buffer += c;
 
 		while (std::isalpha(c))
 		{
 			buffer += c;
-			c = m_Input->get();
-			m_FullBuffer += c;
+			c = m_Stream->get();
+			m_Buffer += c;
 		}
-		m_Input->putback(c);
-		m_FullBuffer.pop_back();
+		m_Stream->putback(c);
+		m_Buffer.pop_back();
 
 		return std::make_pair(Token::Id, buffer);
 	}
