@@ -34,9 +34,9 @@ struct VarContTerm
 struct AbsTerm
 {
 	AbsTerm();
-	AbsTerm(Loc_t loc, Var_t var);
+	AbsTerm(Var_t loc, Var_t var);
 
-	Loc_t loc;
+	Var_t loc;
 	Var_t var;
 	std::unique_ptr<Term> body;
 };
@@ -44,9 +44,9 @@ struct AbsTerm
 struct AppTerm
 {
 	AppTerm();
-	AppTerm(Loc_t loc);
+	AppTerm(Var_t loc);
 
-	Loc_t loc;
+	Var_t loc;
 	std::unique_ptr<Term> arg;
 	std::unique_ptr<Term> body;
 };

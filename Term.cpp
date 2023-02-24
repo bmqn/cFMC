@@ -41,7 +41,7 @@ AbsTerm::AbsTerm()
 	, body(newNilTerm())
 {}
 
-AbsTerm::AbsTerm(Loc_t loc, Var_t var)
+AbsTerm::AbsTerm(Var_t loc, Var_t var)
 	: loc(loc)
 	, var(var)
 	, body(newNilTerm())
@@ -53,7 +53,7 @@ AppTerm::AppTerm()
 	, body(newNilTerm())
 {}
 
-AppTerm::AppTerm(Loc_t loc)
+AppTerm::AppTerm(Var_t loc)
 	: loc(loc)
 	, arg(newNilTerm())
 	, body(newNilTerm())

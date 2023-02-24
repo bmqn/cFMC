@@ -22,8 +22,8 @@ private:
 	FuncDefs_t parseFuncDefs();
 
 	std::optional<Term> parseTerm();
-	std::optional<AbsTerm> parseAbstraction(Loc_t loc = k_DefaultLoc);
-	std::optional<AppTerm> parseApplication(Loc_t loc = k_DefaultLoc);
+	std::optional<AbsTerm> parseAbstraction(Var_t loc = std::string(k_DefaultLocId));
+	std::optional<AppTerm> parseApplication(Var_t loc = std::string(k_DefaultLocId));
 
 private:
 	std::unique_ptr<Lexer> m_Lexer;

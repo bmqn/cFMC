@@ -47,7 +47,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 	case Term::Abs:
 	{
 		const AbsTerm &abs = term.asAbs();
-		if (abs.loc != k_DefaultLoc)
+		if (abs.loc != k_DefaultLocId)
 		{
 			termSs << abs.loc;
 		}
@@ -58,7 +58,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 	case Term::App:
 	{
 		const AppTerm &app = term.asApp();
-		if (app.loc != k_DefaultLoc)
+		if (app.loc != k_DefaultLocId)
 		{
 			termSs << app.loc;
 		}
@@ -99,7 +99,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 		{
 			const AbsTerm &abs = termPtr->asAbs();
 			termSs << " . ";
-			if (abs.loc != k_DefaultLoc)
+			if (abs.loc != k_DefaultLocId)
 			{
 				termSs << abs.loc;
 			}
@@ -111,7 +111,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 		{
 			const AppTerm &app = termPtr->asApp();
 			termSs << " . ";
-			if (app.loc != k_DefaultLoc)
+			if (app.loc != k_DefaultLocId)
 			{
 				termSs << app.loc;
 			}

@@ -47,7 +47,12 @@ int main()
 	// -- First-class locations
 
 	std::string ex14 =
-		"main  = (out[dfl] . out[new] . out[in] . out[out])";
+		"write = (<a> . <x> . a[x])"
+		"print = ([out] . write)"
+		"main  = ([xyz] . print)";
+
+	std::string ex15 =
+		"main  = ([new] . <a> . a<b> . out[b] . b[hello] . b<x> . out[x] . out[a])";
 
 	Parser parser;
 	Program program = parser.parseProgram(ex14); // <-- Change example here ! 
