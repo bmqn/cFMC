@@ -4,6 +4,8 @@
 #include <iomanip>
 #include <cstdlib>
 
+#include "Utils.hpp"
+
 static std::string varGenerator()
 {
 	constexpr const char *k_Src = "xyzwv";
@@ -161,13 +163,28 @@ std::optional<Term> Parser::parseTerm()
 
 		m_Lexer->advance();
 
-		if (auto absOpt = parseAbstraction(Loc(id)))
+		if (   id == k_DefaultLocId || id == k_NewLocId
+			|| id == k_InputLocId || id == k_OutputLocId)
 		{
-			return Term(std::move(absOpt.value()));
-		}
-		else if (auto appOpt = parseApplication(Loc(id)))
-		{
-			return Term(std::move(appOpt.value()));
+			if (auto locOpt = getLocFromId(id))
+			{
+				if (auto absOpt = parseAbstraction(locOpt.value()))
+				{
+					return Term(std::move(absOpt.value()));
+				}
+				else if (auto appOpt = parseApplication(locOpt.value()))
+				{
+					return Term(std::move(appOpt.value()));
+				}
+				else
+				{
+					return Term(ValTerm(locOpt.value()));
+				}
+			}
+			else
+			{
+				parseError("Expected valid location", *m_Lexer);
+			}
 		}
 		else
 		{
@@ -194,7 +211,7 @@ std::optional<Term> Parser::parseTerm()
 	return std::nullopt;
 }
 
-std::optional<AbsTerm> Parser::parseAbstraction(Loc loc)
+std::optional<AbsTerm> Parser::parseAbstraction(Loc_t loc)
 {
 	if (m_Lexer->getToken() == Token::Lab)
 	{
@@ -238,7 +255,7 @@ std::optional<AbsTerm> Parser::parseAbstraction(Loc loc)
 	return std::nullopt;
 }
 
-std::optional<AppTerm> Parser::parseApplication(Loc loc)
+std::optional<AppTerm> Parser::parseApplication(Loc_t loc)
 {
 	if (m_Lexer->getToken() == Token::Lsb)
 	{

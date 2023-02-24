@@ -4,45 +4,7 @@
 #include <variant>
 #include <string>
 
-struct Loc
-{
-	Loc() : loc() {}
-	Loc(const char *l) : loc(l) {}
-	Loc(std::string l) : loc(l) {}
-
-	friend bool operator==(const Loc &lhs, const Loc &rhs);
-	const std::string &operator()() const;
-
-	std::string loc;
-};
-
-struct LocHash
-{
-	std::size_t operator()(const Loc &loc) const
-	{
-		return std::hash<std::string>()(loc.loc);
-	}
-};
-
-struct Var
-{
-	Var() : var() {}
-	Var(const char *v) : var(v) {}
-	Var(std::string v) : var(v) {}
-
-	friend bool operator==(const Var &lhs, const Var &rhs);
-	const std::string &operator()() const;
-
-	std::string var;
-};
-
-struct VarHash
-{
-	std::size_t operator()(const Var &var) const
-	{
-		return std::hash<std::string>()(var.var);
-	}
-};
+#include "Config.hpp"
 
 class Term;
 
@@ -53,7 +15,7 @@ struct AppTerm;
 
 struct ValTerm
 {
-	uint32_t val;
+	Val_t val;
 };
 
 struct NilTerm
@@ -63,28 +25,28 @@ struct NilTerm
 struct VarContTerm
 {
 	VarContTerm();
-	VarContTerm(Var var);
+	VarContTerm(Var_t var);
 
-	Var var;
+	Var_t var;
 	std::unique_ptr<Term> body;
 };
 
 struct AbsTerm
 {
 	AbsTerm();
-	AbsTerm(Loc loc, Var var);
+	AbsTerm(Loc_t loc, Var_t var);
 
-	Loc loc;
-	Var var;
+	Loc_t loc;
+	Var_t var;
 	std::unique_ptr<Term> body;
 };
 
 struct AppTerm
 {
 	AppTerm();
-	AppTerm(Loc loc);
+	AppTerm(Loc_t loc);
 
-	Loc loc;
+	Loc_t loc;
 	std::unique_ptr<Term> arg;
 	std::unique_ptr<Term> body;
 };

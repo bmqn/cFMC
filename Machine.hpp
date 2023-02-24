@@ -8,12 +8,11 @@
 #include "Term.hpp"
 #include "Parser.hpp"
 
-using BoundVars_t = std::unordered_map<Var, const Term *, VarHash>;
+using Stacks_t = std::unordered_map<Loc_t, std::vector<const Term *>>;
 
-using BindCtx_t   = std::unordered_map<const Term *, BoundVars_t>;
-using Frame_t     = std::stack<std::pair<const Term *, BoundVars_t>>;
-
-using Stacks_t    = std::unordered_map<Loc, std::vector<const Term *>, LocHash>;
+using BoundVars_t = std::unordered_map<Var_t, const Term *>;
+using BindCtx_t = std::unordered_map<const Term *, BoundVars_t>;
+using Frame_t   = std::stack<std::pair<const Term *, BoundVars_t>>;
 
 class Machine
 {
@@ -32,10 +31,10 @@ private:
 
 private:
 	const FuncDefs_t *m_Funcs;
+	
+	Stacks_t m_Stacks;
 
 	// Look into closures !
 	BindCtx_t m_BindCtx;
 	Frame_t m_Frame;
-
-	Stacks_t m_Stacks;
 };

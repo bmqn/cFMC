@@ -44,8 +44,13 @@ int main()
 		"f     = (<p> . [p] . [out[recurse] . in<p> . [p] . f] . [out[exit]] . if)"
 		"main  = ([true] . f)";
 
+	// -- First-class locations
+
+	std::string ex14 =
+		"main  = (out[dfl] . out[new] . out[in] . out[out])";
+
 	Parser parser;
-	Program program = parser.parseProgram(ex13); // <-- Change example here ! 
+	Program program = parser.parseProgram(ex14); // <-- Change example here ! 
 	program.load([](const FuncDefs_t *funcs) {
 		// Don't use funcs outside of this sope.. its life is tied to program !
 

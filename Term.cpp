@@ -25,32 +25,12 @@ static auto newTerm(AppTerm &&term)
 	return std::make_unique<Term>(Term(std::move(term)));
 }
 
-bool operator==(const Loc &lhs, const Loc &rhs)
-{
-	return lhs.loc == rhs.loc;
-}
-
-const std::string &Loc::operator()() const
-{
-	return loc;
-}
-
-bool operator==(const Var &lhs, const Var &rhs)
-{
-	return lhs.var == rhs.var;
-}
-
-const std::string &Var::operator()() const
-{
-	return var;
-}
-
 VarContTerm::VarContTerm()
 	: var()
 	, body(newNilTerm())
 {}
 
-VarContTerm::VarContTerm(Var var)
+VarContTerm::VarContTerm(Var_t var)
 	: var(var)
 	, body(newNilTerm())
 {}
@@ -61,7 +41,7 @@ AbsTerm::AbsTerm()
 	, body(newNilTerm())
 {}
 
-AbsTerm::AbsTerm(Loc loc, Var var)
+AbsTerm::AbsTerm(Loc_t loc, Var_t var)
 	: loc(loc)
 	, var(var)
 	, body(newNilTerm())
@@ -73,7 +53,7 @@ AppTerm::AppTerm()
 	, body(newNilTerm())
 {}
 
-AppTerm::AppTerm(Loc loc)
+AppTerm::AppTerm(Loc_t loc)
 	: loc(loc)
 	, arg(newNilTerm())
 	, body(newNilTerm())

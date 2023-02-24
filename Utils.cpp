@@ -3,7 +3,16 @@
 #include <sstream>
 
 #include "Utils.hpp"
-#include "Config.hpp"
+
+std::optional<Loc_t> getLocFromId(const std::string_view &id)
+{
+	if      (id == k_DefaultLocId) { return k_DefaultLoc; }
+	else if (id == k_NewLocId)     { return k_NewLoc; }
+	else if (id == k_InputLocId)   { return k_InputLoc; }
+	else if (id == k_OutputLocId)  { return k_OutputLoc; }
+
+	return std::nullopt;
+}
 
 std::string stringifyTerm(const Term &term, bool omitNil)
 {
@@ -15,7 +24,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 	case Term::Val:
 	{
 		const ValTerm &val = term.asVal();
-		termSs << val.val;
+		termSs << static_cast<uint32_t>(val.val);
 		termPtr = nullptr;
 		break;
 	}
@@ -31,7 +40,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 	case Term::VarCont:
 	{
 		const VarContTerm &varCont = term.asVarCont();
-		termSs << varCont.var.var;
+		termSs << varCont.var;
 		termPtr = varCont.body.get();
 		break;
 	}
@@ -40,9 +49,9 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 		const AbsTerm &abs = term.asAbs();
 		if (abs.loc != k_DefaultLoc)
 		{
-			termSs << abs.loc.loc;
+			termSs << abs.loc;
 		}
-		termSs << "<" << abs.var.var << ">";
+		termSs << "<" << abs.var << ">";
 		termPtr = abs.body.get();
 		break;
 	}
@@ -51,7 +60,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 		const AppTerm &app = term.asApp();
 		if (app.loc != k_DefaultLoc)
 		{
-			termSs << app.loc.loc;
+			termSs << app.loc;
 		}
 		termSs << "[" << stringifyTerm(*app.arg) << "]";
 		termPtr = app.body.get();
@@ -82,7 +91,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 		case Term::VarCont:
 		{
 			const VarContTerm &varCont = termPtr->asVarCont();
-			termSs << " . " << varCont.var.var;
+			termSs << " . " << varCont.var;
 			termPtr = varCont.body.get();
 			break;
 		}
@@ -92,9 +101,9 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 			termSs << " . ";
 			if (abs.loc != k_DefaultLoc)
 			{
-				termSs << abs.loc.loc;
+				termSs << abs.loc;
 			}
-			termSs << "<" << abs.var.var << ">";
+			termSs << "<" << abs.var << ">";
 			termPtr = abs.body.get();
 			break;
 		}
@@ -104,7 +113,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 			termSs << " . ";
 			if (app.loc != k_DefaultLoc)
 			{
-				termSs << app.loc.loc;
+				termSs << app.loc;
 			}
 			termSs << "[" << stringifyTerm(*app.arg) << "]";
 			termPtr = app.body.get();

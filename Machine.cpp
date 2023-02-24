@@ -5,15 +5,6 @@
 Machine::Machine(const FuncDefs_t *funcs)
 	: m_Funcs(funcs)
 {
-	static Term zero = ValTerm{0};
-	static Term two = ValTerm{2};
-	static Term seven = ValTerm{7};
-	static Term nine = ValTerm{9};
-
-	m_Stacks[k_DefaultLoc].push_back(&zero);
-	m_Stacks[k_RandomLoc].push_back(&two);
-	m_Stacks[k_RandomLoc].push_back(&seven);
-	m_Stacks[k_RandomLoc].push_back(&nine);
 }
 
 void Machine::execute()
@@ -45,6 +36,7 @@ void Machine::execute()
 			std::cout << "[WARN] Value term is being executed by machine ! "
 				<< "Perhaps you forgot to push something to the stack !"
 				<< std::endl;
+			
 			break;
 		}
 		case Term::Nil:
@@ -71,7 +63,7 @@ void Machine::execute()
 				}
 				else
 				{
-					std::cout << "[WARN] Variable '" << varCont.var.var << "' "
+					std::cout << "[WARN] Variable '" << varCont.var << "' "
 						<< "is bound to '" << stringifyTerm(*itBound->second) << "' "
 						<< "but did not have an environment binding ! "
 						<< "Be weary of variable capture !"
@@ -83,7 +75,7 @@ void Machine::execute()
 			}
 			else
 			{
-				auto it = m_Funcs->find(varCont.var.var);
+				auto it = m_Funcs->find(varCont.var);
 				if (it != m_Funcs->end())
 				{
 					// Push bound term and a new binding context to frame
@@ -91,7 +83,7 @@ void Machine::execute()
 				}
 				else
 				{
-					std::cout << "[WARN] Variable '" << varCont.var.var << "' "
+					std::cout << "[WARN] Variable '" << varCont.var << "' "
 						<< "is not bound to anything !"
 						<< std::endl;
 				}
@@ -105,8 +97,20 @@ void Machine::execute()
 
 			const Term *toPop;
 
+			// New stream
+			if (abs.loc == k_NewLoc)
+			{
+				static Val_t s_NewLoc = k_FirstNewLoc;
+
+				// Need some way to generate 'new' terms without leaking memory :/
+				Term *term = new Term();
+				*term = ValTerm(s_NewLoc);
+				toPop = term;
+
+				s_NewLoc++;
+			}
 			// Input stream
-			if (abs.loc == k_InputLoc)
+			else if (abs.loc == k_InputLoc)
 			{
 				std::string in;
 				std::getline(std::cin, in);
@@ -116,6 +120,14 @@ void Machine::execute()
 				Term *term = new Term();
 				*term = std::move(parser.parseTerm(in));
 				toPop = term;
+			}
+			// Output stream
+			else if (abs.loc == k_OutputLoc)
+			{
+				std::cout << "[WARN] Abstraction is attemping to bind from output location ! "
+					<< std::endl;
+				
+				std::exit(1);
 			}
 			// Generic stream
 			else
@@ -148,8 +160,24 @@ void Machine::execute()
 				}
 			}
 
+			// New stream
+			if (app.loc == k_NewLoc)
+			{
+				std::cout << "[WARN] Application is attemping to push to new location ! "
+					<< std::endl;
+
+				std::exit(1);
+			}
+			// Input stream
+			else if (app.loc == k_InputLoc)
+			{
+				std::cout << "[WARN] Application is attemping to push to input location ! "
+					<< std::endl;
+
+				std::exit(1);
+			}
 			// Output stream
-			if (app.loc == k_OutputLoc)
+			else if (app.loc == k_OutputLoc)
 			{
 				// Basic 'cheaty' implementation
 				std::cout << stringifyTerm(*toPush) << std::endl;
@@ -178,7 +206,7 @@ void Machine::printDebug()
 
 	for (auto itStacks = m_Stacks.begin(); itStacks != m_Stacks.end(); ++itStacks)
 	{
-		std::cout << "  -- " << itStacks->first.loc << std::endl;
+		std::cout << "  -- " << itStacks->first << std::endl;
 
 		for (auto itStack = itStacks->second.rbegin(); itStack != itStacks->second.rend(); ++itStack)
 		{
@@ -201,7 +229,7 @@ void Machine::printDebug()
 
 		for (auto itBinds = itBindCtx->second.begin(); itBinds != itBindCtx->second.end(); ++itBinds)
 		{
-			std::cout << "    " << (*itBinds).first.var << " --> " << stringifyTerm(*(*itBinds).second) << std::endl;
+			std::cout << "    " << (*itBinds).first << " --> " << stringifyTerm(*(*itBinds).second) << std::endl;
 		}
 
 		auto itBindCtxCopy = itBindCtx;
