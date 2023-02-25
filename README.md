@@ -1,6 +1,6 @@
 # cFMC
 
-A parser and interpreter for the C-like Functional Machine Calculus (FMC) variant discussed in my dissertation project at the University of Bath.
+A parser and interpreter for a C-inspired Functional Machine Calculus (FMC) variant which has first-class locations. This forms part of my dissertation project at the University of Bath which aims to investigate first-class locations in the FMC.
 
 
 ### Programs
