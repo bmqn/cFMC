@@ -1,6 +1,6 @@
 # cFMC
 
-A parser and interpreter for the C-like FMC variant discussed in my dissertation project at the University of Bath.
+A parser and interpreter for the C-like Functional Machine Calculus (FMC) variant discussed in my dissertation project at the University of Bath.
 
 
 ### Programs
