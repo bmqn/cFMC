@@ -11,3 +11,15 @@ Execute the included shell script `run.sh` to compile and run the program. This 
 ## Windows
 
 ... Don't be silly, use WSL !
+
+## Example
+
+Program which pushes (prints) `0` to the output stream. 
+
+```
+write = (<a> . <x> . a[x])
+print = ([out] . write)
+main  = ([0] . print)
+```
+
+The function `print` is defined in terms of a more general variant called `write` which parameterizes the location to write to and the term to write.
