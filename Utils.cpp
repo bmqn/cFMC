@@ -14,6 +14,16 @@ std::optional<Loc_t> getLocFromId(const std::string_view &id)
 	return std::nullopt;
 }
 
+std::optional<std::string> getIdFromLoc(const Loc_t &loc)
+{
+	if      (loc == k_DefaultLoc) { return std::string(k_DefaultLocId); }
+	else if (loc == k_NewLoc)     { return std::string(k_NewLocId); }
+	else if (loc == k_InputLoc)   { return std::string(k_InputLocId); }
+	else if (loc == k_OutputLoc)  { return std::string(k_OutputLocId); }
+
+	return std::nullopt;
+}
+
 std::string stringifyTerm(const Term &term, bool omitNil)
 {
 	std::stringstream termSs;

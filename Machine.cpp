@@ -94,33 +94,30 @@ void Machine::execute()
 		case Term::Abs:
 		{
 			static Val_t s_NewLoc = k_FirstNewLoc;
-
+			
 			const AbsTerm &abs = term->asAbs();
-
 			const Term *toPop;
 
-			if (auto locOpt = getLocFromId(abs.loc))
-			{
-				// Default stream
-				if (locOpt.value() == k_DefaultLoc)
+			auto absActionWithLoc = [&](Loc_t loc) {
+				// Default stack
+				if (loc == k_DefaultLoc)
 				{
-					Loc_t loc = k_DefaultLoc;
-					toPop = m_Stacks[loc].back();
-					m_Stacks[loc].pop_back();
+					toPop = m_Stacks[k_DefaultLoc].back();
+					m_Stacks[k_DefaultLoc].pop_back();
 				}
 				// New stream
-				else if (locOpt.value() == k_NewLoc)
+				else if (loc == k_NewLoc)
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
 					Term *term = new Term();
-					*term = ValTerm(s_NewLoc);
+					*term = ValTerm{s_NewLoc};
 					toPop = term;
 
 					m_Stacks[s_NewLoc] = {};
 					s_NewLoc++;
 				}
 				// Input stream
-				else if (locOpt.value() == k_InputLoc)
+				else if (loc == k_InputLoc)
 				{
 					std::string in;
 					std::getline(std::cin, in);
@@ -132,15 +129,26 @@ void Machine::execute()
 					toPop = term;
 				}
 				// Output stream
-				else if (locOpt.value() == k_OutputLoc)
+				else if (loc == k_OutputLoc)
 				{
 					std::cout << "[WARN] Abstraction is attemping to bind from output location ! "
 						<< std::endl;
-					
 					std::exit(1);
 				}
+				// Generic stack
+				else
+				{
+					toPop = m_Stacks[loc].back();
+					m_Stacks[loc].pop_back();
+				}
+			};
+
+			// Reserved stack/stream
+			if (auto locOpt = getLocFromId(abs.loc))
+			{
+				absActionWithLoc(locOpt.value());
 			}
-			// Generic stream
+			// Generic stack
 			else
 			{
 				auto itBound = bound.find(abs.loc);
@@ -148,49 +156,14 @@ void Machine::execute()
 				{
 					if (itBound->second->kind() == Term::Val)
 					{
+						// Use value as location
 						const ValTerm &val = itBound->second->asVal();
-
-						Loc_t loc = val.val;
-
-						if (loc == k_NewLoc)
-						{
-							// Need some way to generate 'new' terms without leaking memory :/
-							Term *term = new Term();
-							*term = ValTerm(s_NewLoc);
-							toPop = term;
-
-							m_Stacks[s_NewLoc] = {};
-							s_NewLoc++;
-						}
-						else if (loc == k_InputLoc)
-						{
-							std::string in;
-							std::getline(std::cin, in);
-
-							// Need some way to generate 'new' terms without leaking memory :/
-							Parser parser;
-							Term *term = new Term();
-							*term = std::move(parser.parseTerm(in));
-							toPop = term;
-						}
-						else if (loc == k_OutputLoc)
-						{
-							std::cout << "[WARN] Abstraction is attemping to bind from output location ! "
-								<< std::endl;
-							
-							std::exit(1);
-						}
-						else
-						{
-							toPop = m_Stacks[loc].back();
-							m_Stacks[loc].pop_back();
-						}
+						absActionWithLoc(Loc_t(val.val));
 					}
 					else
 					{
 						std::cout << "[WARN] Abstraction location is attemping to bind to a non-value ! "
 							<< std::endl;
-					
 						std::exit(1);
 					}
 				}
@@ -199,7 +172,6 @@ void Machine::execute()
 					std::cout << "[WARN] Abstraction location '" << abs.loc << "' "
 						<< "is not bound to anything !"
 						<< std::endl;
-					
 					std::exit(1);
 				}
 			}
@@ -215,9 +187,9 @@ void Machine::execute()
 		case Term::App:
 		{
 			const AppTerm &app = term->asApp();
+			const Term *toPush = app.arg.get();
 
 			// Find and push argument term to stack
-			const Term *toPush = app.arg.get();
 			if (app.arg->kind() == Term::VarCont)
 			{
 				const VarContTerm &varCont = app.arg->asVarCont();
@@ -227,68 +199,77 @@ void Machine::execute()
 				{
 					toPush = it->second;
 				}
+				// Default stack
 				else if (varCont.var == k_DefaultLocId)
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
 					Term *term = new Term();
-					*term = ValTerm(k_DefaultLoc);
+					*term = ValTerm{k_DefaultLoc};
 					toPush = term;
 				}
 				else if (varCont.var == k_NewLocId)
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
 					Term *term = new Term();
-					*term = ValTerm(k_NewLoc);
+					*term = ValTerm{k_NewLoc};
 					toPush = term;
 				}
 				else if (varCont.var == k_InputLocId)
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
 					Term *term = new Term();
-					*term = ValTerm(k_InputLoc);
+					*term = ValTerm{k_InputLoc};
 					toPush = term;
 				}
 				else if (varCont.var == k_OutputLocId)
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
 					Term *term = new Term();
-					*term = ValTerm(k_OutputLoc);
+					*term = ValTerm{k_OutputLoc};
 					toPush = term;
 				}
 			}
 
-			if (auto locOpt = getLocFromId(app.loc))
-			{
-				// Default stream
-				if (locOpt.value() == k_DefaultLoc)
+			auto appActionWithLoc = [&](Loc_t loc) {
+				// Default stack
+				if (loc == k_DefaultLoc)
 				{
 					Loc_t loc = k_DefaultLoc;
 					m_Stacks[loc].push_back(toPush);
 				}
 				// New stream
-				else if (locOpt.value() == k_NewLoc)
+				else if (loc == k_NewLoc)
 				{
 					std::cout << "[WARN] Application is attemping to push to new location ! "
 						<< std::endl;
-
 					std::exit(1);
 				}
 				// Input stream
-				else if (locOpt.value() == k_InputLoc)
+				else if (loc == k_InputLoc)
 				{
 					std::cout << "[WARN] Application is attemping to push to input location ! "
 						<< std::endl;
-
 					std::exit(1);
 				}
 				// Output stream
-				else if (locOpt.value() == k_OutputLoc)
+				else if (loc == k_OutputLoc)
 				{
 					// Basic 'cheaty' implementation
 					std::cout << stringifyTerm(*toPush) << std::endl;
 				}
+				// Generic stream
+				else
+				{
+					m_Stacks[loc].push_back(toPush);
+				}
+			};
+
+			// Reserved stack/stream
+			if (auto locOpt = getLocFromId(app.loc))
+			{
+				appActionWithLoc(locOpt.value());
 			}
-			// Generic stream
+			// Generic stack
 			else
 			{
 				auto itBound = bound.find(app.loc);
@@ -296,44 +277,14 @@ void Machine::execute()
 				{
 					if (itBound->second->kind() == Term::Val)
 					{
+						// Use value as location
 						const ValTerm &val = itBound->second->asVal();
-
-						Loc_t loc = val.val;
-
-						if (loc == k_DefaultLoc)
-						{
-							Loc_t loc = k_DefaultLoc;
-							m_Stacks[loc].push_back(toPush);
-						}
-						else if (loc == k_NewLoc)
-						{
-							std::cout << "[WARN] Application is attemping to push to new location ! "
-								<< std::endl;
-
-							std::exit(1);	
-						}
-						else if (loc == k_InputLoc)
-						{
-							std::cout << "[WARN] Application is attemping to push to input location ! "
-								<< std::endl;
-
-							std::exit(1);	
-						}
-						else if (loc == k_OutputLoc)
-						{
-							// Basic 'cheaty' implementation
-							std::cout << stringifyTerm(*toPush) << std::endl;
-						}
-						else
-						{
-							m_Stacks[loc].push_back(toPush);
-						}
+						appActionWithLoc(Loc_t(val.val));
 					}
 					else
 					{
 						std::cout << "[WARN] Application location is attemping to bind to a non-value ! "
 							<< std::endl;
-					
 						std::exit(1);
 					}
 				}
@@ -342,7 +293,6 @@ void Machine::execute()
 					std::cout << "[WARN] Application location '" << app.loc << "' "
 						<< "is not bound to anything !"
 						<< std::endl;
-					
 					std::exit(1);
 				}
 			}
@@ -365,7 +315,14 @@ void Machine::printDebug()
 
 	for (auto itStacks = m_Stacks.begin(); itStacks != m_Stacks.end(); ++itStacks)
 	{
-		std::cout << "  -- " << itStacks->first << std::endl;
+		if (auto idOpt = getIdFromLoc(itStacks->first))
+		{
+			std::cout << "  -- Location " << idOpt.value() << std::endl;
+		}
+		else
+		{
+			std::cout << "  -- Location index " << static_cast<uint32_t>(itStacks->first) << std::endl;
+		}
 
 		for (auto itStack = itStacks->second.rbegin(); itStack != itStacks->second.rend(); ++itStack)
 		{

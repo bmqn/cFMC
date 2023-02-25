@@ -54,14 +54,21 @@ int main()
 	std::string ex15 =
 		"main  = ([new] . <a> . a<b> . out[b] . b[hello] . b<x> . out[x] . out[a])";
 
+	std::string ex16 =
+		"write = (<a> . <x> . a[x])"
+		"true  = (<a> . <b> . a)"
+		"false = (<a> . <b> . b)"
+		"if    = (<b> . <a> . <p> . [b] . [a] . p)"
+		"main = ([xyz] . in<p> . [p] . [[out]] . [new<a> . [a]] . if . write)";
+
 	Parser parser;
-	Program program = parser.parseProgram(ex14); // <-- Change example here ! 
+	Program program = parser.parseProgram(ex13); // <-- Change example here ! 
 	program.load([](const FuncDefs_t *funcs) {
 		// Don't use funcs outside of this sope.. its life is tied to program !
 
 		Machine machine(funcs);
 		machine.execute();
-		// machine.printDebug();
+		machine.printDebug();
 	});
 
 	return 0;
