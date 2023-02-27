@@ -20,18 +20,11 @@ static std::string readFile(const std::string &path)
 
 int main()
 {
-	// --- Basic stream read/write tests ---
+	// --- Basics ---
 
-	std::string ex0  = "main = (out[x])";
-	std::string ex1  = "main = (rnd<x> . out[x])";
-	std::string ex2  = "main = (<x> . rnd<y> . out[x] . out[y])";
-	std::string ex3  = "main = (rnd<x> . [out[x]] . <f> . f . f)";
-	std::string ex4  = "main = ([rnd<x> . out[x]] . <f> . f . f)";
-	std::string ex5  = "main = (rnd<x> . [out[x]] . <f> . f . [z] . <x> . f . [x])";
-	std::string ex6  = "main = (rnd<x> . [out[x]] . <f> . f . [z] . f . [x])";
-	std::string ex7  = "main = ([rnd<x> . out[x]] . <y> . rnd<x> . [out[x] . y] . <f> . f . [z] . <x> . f . out[x])";
-	std::string ex8  = "main = ([rnd<x> . out[x]] . <x> . [x] . x . x . rnd[z] . x)";
-	std::string ex9  = "main = ([in<x> . out[x]] . <echo> . echo)";
+	std::string ex0  = "main = ([0] . out[x])";
+	std::string ex1  = "main = (in<x> . out[x])";
+	std::string ex3  = "main = ([in<x> . out[x]] . <echo> . echo)";
 	
 	// -- Function definitions ---
 	
@@ -49,7 +42,7 @@ int main()
 
 	// -- Recursion --
 
-	std::string ex13 =
+	std::string ex20 =
 		"true  = (<a> . <b> . a)"
 		"false = (<a> . <b> . b)"
 		"if    = (<b> . <a> . <p> . [b] . [a] . p)"
@@ -58,15 +51,15 @@ int main()
 
 	// -- First-class locations
 
-	std::string ex14 =
+	std::string ex30 =
 		"write = (<a> . <x> . a[x])"
 		"print = ([out] . write)"
 		"main  = ([xyz] . print)";
 
-	std::string ex15 =
+	std::string ex31 =
 		"main  = ([new] . <a> . a<b> . out[b] . b[hello] . b<x> . out[x] . out[a])";
 
-	std::string ex16 =
+	std::string ex32 =
 		"write = (<a> . <x> . a[x])"
 		"true  = (<a> . <b> . a)"
 		"false = (<a> . <b> . b)"
@@ -75,17 +68,17 @@ int main()
 
 	// -- Data structures
 
-	std::string linked_lists = readFile("linked_lists.fmc");
+	std::string ex40 = readFile("linked_list.fmc");
 
-	Parser parser;
-	Program program = parser.parseProgram(linked_lists); // <-- Change example here ! 
-	program.load([](const FuncDefs_t *funcs) {
-		// Don't use funcs outside of this sope.. its life is tied to program !
-
-		Machine machine(funcs);
-		machine.execute();
-		// machine.printDebug();
-	});
+	{
+		Parser parser;
+		Program program = parser.parseProgram(ex40); // <-- Change example here ! 
+		program.load([](const FuncDefs_t *funcs) {
+			Machine machine(funcs);
+			machine.execute();
+			// machine.printDebug(); // <-- Enable debug print to see stack & binds
+		});
+	}
 
 	return 0;
 }
