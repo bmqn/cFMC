@@ -60,4 +60,4 @@ Execute the included shell script `run.sh` to compile and run the program. This 
 
 ### Windows
 
-... Don't be silly, use WSL !
+... Don't be silly, use WSL ! There is `run.bat` which will work if executed from the VS Developer Command Prompt.
