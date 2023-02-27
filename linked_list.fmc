@@ -1,34 +1,41 @@
-create_ll = (
+create = (
     <v> . new<hp> . hp[v] . hp[0] . [hp]
 )
 
-push_back_ll = (
+push_back = (
     <v> . <hp> . hp<hnp> . hp<hv> . [hnp] . (
-        0         -> [v] . create_ll . <np> . hp[hv] . hp[np],
-        otherwise -> hp[hv] . hp[hnp] . [hnp] . [v] . push_back_ll
+        0         -> [v] . create . <np> . hp[hv] . hp[np],
+        otherwise -> hp[hv] . hp[hnp] . [hnp] . [v] . push_back
     )
 )
 
-traverse_ll = (
+traverse = (
     <f> . <hp> . hp<hnp> . hp<hv> . hp[hv] . hp[hnp] . [hnp] . (
         0         -> [hv] . f,
-        otherwise -> [hv] . f . [hnp] . [f] . traverse_ll
+        otherwise -> [hv] . f . [hnp] . [f] . traverse
     )
 )
 
-rtraverse_ll = (
+rtraverse = (
     <f> . <hp> . hp<hnp> . hp<hv> . hp[hv] . hp[hnp] . [hnp] . (
         0         -> [hv] . f,
-        otherwise -> [hv] . [hnp] . [f] . rtraverse_ll . f
+        otherwise -> [hv] . [hnp] . [f] . rtraverse . f
     )
 )
 
 main = (
-    [1] . create_ll . <hp>
-    . [hp] . [2] . push_back_ll
-    . [hp] . [3] . push_back_ll
-    . [hp] . [4] . push_back_ll
-    . [hp] . [5] . push_back_ll
-    . [hp] . [<x> . out[x]] . traverse_ll
-    . [hp] . [<x> . out[x]] . rtraverse_ll
+    [1] . create . <hp1>
+    . [hp1] . [2] . push_back
+    . [hp1] . [3] . push_back
+    . [hp1] . [4] . push_back
+    . [hp1] . [5] . push_back
+    . [hp1] . [<x> . out[x]] . traverse
+    . [hp1] . [<x> . out[x]] . rtraverse .
+    [[1] . <x> . out[x]] . create . <hp2>
+    . [hp2] . [[2] . <x> . out[x]] . push_back
+    . [hp2] . [[3] . <x> . out[x]] . push_back
+    . [hp2] . [[4] . <x> . out[x]] . push_back
+    . [hp2] . [[5] . <x> . out[x]] . push_back
+    . [hp2] . [<f> . out[f] . f] . traverse
+    . [hp2] . [<f> . out[f] . f] . rtraverse
 )

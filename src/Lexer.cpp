@@ -164,7 +164,7 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 		c = m_Stream->get();
 		m_Buffer += c;
 
-		while (std::isalpha(c) || c == '_')
+		while (std::isalnum(c) || c == '_')
 		{
 			buffer += c;
 			c = m_Stream->get();
