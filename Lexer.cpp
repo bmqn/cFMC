@@ -5,20 +5,26 @@
 
 static void lexError(std::string message, const Lexer &lexer)
 {
-	const std::string &src = lexer.getSource();
 	const std::string &buf = lexer.getBuffer();
 	const std::string &tokenbuf = lexer.getTokenBuffer();
-
 	int tokenLen = tokenbuf.size();
 
+	std::cerr << "[Lex Error]" << std::endl;
+
+	std::stringstream ss(buf);
+	std::string line;
+
+	while (std::getline(ss, line, '\n'))
+	{
+		std::cerr << "|  " << line << std::endl;
+	}
+
 	std::string err;
-	err += std::string(buf.size() - tokenLen, ' ');
+	err += std::string(line.size() - tokenLen, ' ');
 	err += std::string(tokenLen, '^');
 	err += " ";
 	err += message;
 
-	std::cerr << "[Lex Error]" << std::endl;
-	std::cerr << "|  " << src << std::endl;
 	std::cerr << "|  " << err << std::endl;
 
 	std::exit(1);
@@ -132,21 +138,33 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 	{
 		return std::make_pair(Token::Dot, buffer);
 	}
-	else if (c == ';')
-	{
-		return std::make_pair(Token::SemiColon, buffer);
-	}
 	else if (c == '=')
 	{
 		return std::make_pair(Token::Eql, buffer);
 	}
-	
-	if (std::isalpha(c))
+	else if (c == ',')
+	{
+		return std::make_pair(Token::Comma, buffer);
+	}
+	else if (c == '-')
 	{
 		c = m_Stream->get();
 		m_Buffer += c;
 
-		while (std::isalpha(c))
+		if (c == '>')
+		{
+			return std::make_pair(Token::Arrow, buffer);
+		}
+
+		m_Stream->putback(c);
+		m_Buffer.pop_back();
+	}
+	else if (std::isalpha(c))
+	{
+		c = m_Stream->get();
+		m_Buffer += c;
+
+		while (std::isalpha(c) || c == '_')
 		{
 			buffer += c;
 			c = m_Stream->get();
@@ -156,6 +174,22 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 		m_Buffer.pop_back();
 
 		return std::make_pair(Token::Id, buffer);
+	}
+	else if (std::isdigit(c))
+	{
+		c = m_Stream->get();
+		m_Buffer += c;
+
+		while (std::isdigit(c))
+		{
+			buffer += c;
+			c = m_Stream->get();
+			m_Buffer += c;
+		}
+		m_Stream->putback(c);
+		m_Buffer.pop_back();
+
+		return std::make_pair(Token::Val, buffer);
 	}
 
 	return std::nullopt;

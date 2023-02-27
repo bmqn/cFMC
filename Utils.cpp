@@ -31,13 +31,6 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 
 	switch (term.kind())
 	{
-	case Term::Val:
-	{
-		const ValTerm &val = term.asVal();
-		termSs << static_cast<uint32_t>(val.val);
-		termPtr = nullptr;
-		break;
-	}
 	case Term::Nil:
 	{
 		if (!omitNil)
@@ -76,19 +69,44 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 		termPtr = app.body.get();
 		break;
 	}
+	case Term::Val:
+	{
+		const ValTerm &val = term.asVal();
+		termSs << static_cast<uint32_t>(val.val);
+		termPtr = nullptr;
+		break;
+	}
+	case Term::Cases:
+	{
+		const CasesTerm &cases = term.asCases();
+		termSs << "(";
+		for (auto itCases = cases.cases.begin(); itCases != cases.cases.end(); ++itCases)
+		{
+			if (itCases->first == static_cast<Val_t>(-1))
+			{
+				termSs << "otherwise";
+			}
+			else
+			{
+				termSs << static_cast<uint32_t>(itCases->first);
+			}
+			termSs  << " -> " << stringifyTerm(*itCases->second);
+
+			auto itCasesCopy = itCases;
+			if (!(++itCasesCopy == cases.cases.end()))
+			{
+				termSs << ", ";
+			}
+		}
+		termSs << ")";
+		break;
+	}
 	}
 
 	while (termPtr)
 	{
 		switch (termPtr->kind())
 		{
-		case Term::Val:
-		{
-			const ValTerm &val = term.asVal();
-			termSs << " . " << val.val;
-			termPtr = nullptr;
-			break;
-		}
 		case Term::Nil:
 		{
 			if (!omitNil)
@@ -127,6 +145,38 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 			}
 			termSs << "[" << stringifyTerm(*app.arg) << "]";
 			termPtr = app.body.get();
+			break;
+		}
+		case Term::Val:
+		{
+			const ValTerm &val = term.asVal();
+			termSs << " . " << val.val;
+			termPtr = nullptr;
+			break;
+		}
+		case Term::Cases:
+		{
+			const CasesTerm &cases = term.asCases();
+			termSs << ". (";
+			for (auto itCases = cases.cases.begin(); itCases != cases.cases.end(); ++itCases)
+			{
+				if (itCases->first == static_cast<Val_t>(-1))
+				{
+					termSs << "otherwise";
+				}
+				else
+				{
+					termSs << static_cast<uint32_t>(itCases->first);
+				}
+				termSs  << " -> " << stringifyTerm(*itCases->second);
+
+				auto itCasesCopy = itCases;
+				if (!(++itCasesCopy == cases.cases.end()))
+				{
+					termSs << ", ";
+				}
+			}
+			termSs << ")";
 			break;
 		}
 		}

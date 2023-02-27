@@ -59,14 +59,21 @@ AppTerm::AppTerm(Var_t loc)
 	, body(newNilTerm())
 {}
 
+CasesTerm::CasesTerm()
+	: body(newNilTerm())
+{}
+
+void CasesTerm::addCase(Val_t val, Term &&term)
+{
+	auto caseTerm = newNilTerm();
+	*caseTerm = std::move(term);
+
+	cases.emplace(val, std::move(caseTerm));
+}
+
 Term::Term()
 	: m_Kind(Nil)
 	, m_Term(NilTerm())
-{}
-
-Term::Term(ValTerm &&term)
-	: m_Kind(Val)
-	, m_Term(std::move(term))
 {}
 
 Term::Term(NilTerm &&term)
@@ -89,14 +96,19 @@ Term::Term(AppTerm &&term)
 	, m_Term(std::move(term))
 {}
 
+Term::Term(ValTerm &&term)
+	: m_Kind(Val)
+	, m_Term(std::move(term))
+{}
+
+Term::Term(CasesTerm &&term)
+	: m_Kind(Cases)
+	, m_Term(std::move(term))
+{}
+
 Term::Kind Term::kind() const
 {
 	return m_Kind;
-}
-
-const ValTerm &Term::asVal() const
-{
-	return std::get<ValTerm>(m_Term);
 }
 
 const NilTerm &Term::asNil() const
@@ -117,4 +129,14 @@ const AbsTerm &Term::asAbs() const
 const AppTerm &Term::asApp() const
 {
 	return std::get<AppTerm>(m_Term);
+}
+
+const ValTerm &Term::asVal() const
+{
+	return std::get<ValTerm>(m_Term);
+}
+
+const CasesTerm &Term::asCases() const
+{
+	return std::get<CasesTerm>(m_Term);
 }

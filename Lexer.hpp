@@ -11,15 +11,17 @@ enum class Token
 {
 	Nothing, // Represents nothing
 
-	Lb, Rb, // Brackets
-	Lab, Rab, // Angle brackets
-	Lsb, Rsb, // Square brackets
+	Lb, Rb, // ()
+	Lab, Rab, // <>
+	Lsb, Rsb, // []
 	
-	Astx, // Sequential nil
-	Dot, // Term separator
-	SemiColon, // Semi-colon
-	Eql, // Equal sign
+	Astx, // *
+	Dot, // .
+	Eql, // =
+	Comma, // ,
+	Arrow, // ->
 
+	Val, // Value, i.e. integer, bool, etc.
 	Id, // Identifier, i.e. location name, variable name, function name etc.
 
 	Eof // End of line

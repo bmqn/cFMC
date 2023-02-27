@@ -1,0 +1,34 @@
+create_ll = (
+    <v> . new<hp> . hp[v] . hp[0] . [hp]
+)
+
+push_back_ll = (
+    <v> . <hp> . hp<hnp> . hp<hv> . [hnp] . (
+        0         -> [v] . create_ll . <np> . hp[hv] . hp[np],
+        otherwise -> hp[hv] . hp[hnp] . [hnp] . [v] . push_back_ll
+    )
+)
+
+traverse_ll = (
+    <f> . <hp> . hp<hnp> . hp<hv> . hp[hv] . hp[hnp] . [hnp] . (
+        0         -> [hv] . f,
+        otherwise -> [hv] . f . [hnp] . [f] . traverse_ll
+    )
+)
+
+rtraverse_ll = (
+    <f> . <hp> . hp<hnp> . hp<hv> . hp[hv] . hp[hnp] . [hnp] . (
+        0         -> [hv] . f,
+        otherwise -> [hv] . [hnp] . [f] . rtraverse_ll . f
+    )
+)
+
+main = (
+    [1] . create_ll . <hp>
+    . [hp] . [2] . push_back_ll
+    . [hp] . [3] . push_back_ll
+    . [hp] . [4] . push_back_ll
+    . [hp] . [5] . push_back_ll
+    . [hp] . [<x> . out[x]] . traverse_ll
+    . [hp] . [<x> . out[x]] . rtraverse_ll
+)

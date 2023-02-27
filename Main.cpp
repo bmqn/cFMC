@@ -1,9 +1,22 @@
 #include <string>
+#include <string_view>
+#include <sstream>
+#include <fstream>
+#include <iostream>
 
 #include "Lexer.hpp"
 #include "Parser.hpp"
 #include "Program.hpp"
 #include "Machine.hpp"
+
+static std::string readFile(const std::string &path)
+{
+	std::ifstream ifs(path);
+	std::stringstream buffer;
+	buffer << ifs.rdbuf();
+
+	return buffer.str();
+}
 
 int main()
 {
@@ -19,7 +32,6 @@ int main()
 	std::string ex7  = "main = ([rnd<x> . out[x]] . <y> . rnd<x> . [out[x] . y] . <f> . f . [z] . <x> . f . out[x])";
 	std::string ex8  = "main = ([rnd<x> . out[x]] . <x> . [x] . x . x . rnd[z] . x)";
 	std::string ex9  = "main = ([in<x> . out[x]] . <echo> . echo)";
-
 	
 	// -- Function definitions ---
 	
@@ -61,14 +73,18 @@ int main()
 		"if    = (<b> . <a> . <p> . [b] . [a] . p)"
 		"main = ([xyz] . in<p> . [p] . [[out]] . [new<a> . [a]] . if . write)";
 
+	// -- Data structures
+
+	std::string linked_lists = readFile("linked_lists.fmc");
+
 	Parser parser;
-	Program program = parser.parseProgram(ex13); // <-- Change example here ! 
+	Program program = parser.parseProgram(linked_lists); // <-- Change example here ! 
 	program.load([](const FuncDefs_t *funcs) {
 		// Don't use funcs outside of this sope.. its life is tied to program !
 
 		Machine machine(funcs);
 		machine.execute();
-		machine.printDebug();
+		// machine.printDebug();
 	});
 
 	return 0;

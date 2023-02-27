@@ -31,14 +31,6 @@ void Machine::execute()
 
 		switch (term->kind())
 		{
-		case Term::Val:
-		{
-			std::cout << "[WARN] Value term is being executed by machine ! "
-				<< "Perhaps you forgot to push something to the stack !"
-				<< std::endl;
-			
-			break;
-		}
 		case Term::Nil:
 		{
 			break;
@@ -102,8 +94,16 @@ void Machine::execute()
 				// Default stack
 				if (loc == k_DefaultLoc)
 				{
-					toPop = m_Stacks[k_DefaultLoc].back();
-					m_Stacks[k_DefaultLoc].pop_back();
+					if (!m_Stacks[k_DefaultLoc].empty())
+					{
+						toPop = m_Stacks[k_DefaultLoc].back();
+						m_Stacks[k_DefaultLoc].pop_back();
+					}
+					else
+					{
+						std::cout << "[WARN] Abstraction is attempting to bind from empty stack !" << std::endl;
+						std::exit(1);
+					}
 				}
 				// New stream
 				else if (loc == k_NewLoc)
@@ -138,8 +138,18 @@ void Machine::execute()
 				// Generic stack
 				else
 				{
-					toPop = m_Stacks[loc].back();
-					m_Stacks[loc].pop_back();
+					if (!m_Stacks[loc].empty())
+					{
+						toPop = m_Stacks[loc].back();
+						m_Stacks[loc].pop_back();
+					}
+					else
+					{
+						std::cout << "[WARN] Abstraction is attempting to bind from empty stack index '"
+							<< loc << "' !"
+							<< std::endl;
+						std::exit(1);
+					}
 				}
 			};
 
@@ -242,6 +252,7 @@ void Machine::execute()
 				{
 					std::cout << "[WARN] Application is attemping to push to new location ! "
 						<< std::endl;
+					printDebug();
 					std::exit(1);
 				}
 				// Input stream
@@ -302,6 +313,68 @@ void Machine::execute()
 
 			// Push continuation term to frame
 			m_Frame.push(std::make_pair(app.body.get(), bound));
+
+			break;
+		}
+		case Term::Val:
+		{
+			std::cout << "[WARN] Value term is being executed by machine ! "
+				<< "Perhaps you forgot to push something to the stack !"
+				<< std::endl;
+			
+			break;
+		}
+		case Term::Cases:
+		{
+			const CasesTerm &cases = term->asCases();
+			const Term *toPop;
+
+			// Push continuation term to frame
+			m_Frame.push(std::make_pair(cases.body.get(), bound));
+
+			if (!m_Stacks[k_DefaultLoc].empty())
+			{
+				toPop = m_Stacks[k_DefaultLoc].back();
+				m_Stacks[k_DefaultLoc].pop_back();
+			}
+			else
+			{
+				std::cout << "[WARN] Cases is attempting to match from empty stack !" << std::endl;
+				std::exit(1);
+			}
+
+			if (toPop->kind() == Term::Val)
+			{
+				const ValTerm &val = toPop->asVal();
+
+				auto itCase = cases.cases.find(val.val);
+				if (itCase != cases.cases.end())
+				{
+					// Push case term and the global binding context to frame
+					m_Frame.push(std::make_pair(itCase->second.get(), bound));
+				}
+				else
+				{
+					itCase = cases.cases.find(static_cast<Val_t>(-1));
+					if (itCase != cases.cases.end())
+					{
+						// Push case term and the global binding context to frame
+						m_Frame.push(std::make_pair(itCase->second.get(), bound));
+					}
+					else
+					{
+						std::cout << "[WARN] Cases could not match value and did not have an 'otherwise' pattern !"
+									<< std::endl;
+						std::exit(1);
+					}
+				}
+			}
+			else
+			{
+				std::cout << "[WARN] Cases is attemping to match a non-value !"
+							<< std::endl;
+				std::exit(1);
+			}
 
 			break;
 		}

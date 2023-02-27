@@ -3,20 +3,11 @@
 #include <memory>
 #include <variant>
 #include <string>
+#include <map>
 
 #include "Config.hpp"
 
 class Term;
-
-struct NilTerm;
-struct VarContTerm;
-struct AbsTerm;
-struct AppTerm;
-
-struct ValTerm
-{
-	Val_t val;
-};
 
 struct NilTerm
 {
@@ -51,38 +42,55 @@ struct AppTerm
 	std::unique_ptr<Term> body;
 };
 
+struct ValTerm
+{
+	Val_t val;
+};
+
+struct CasesTerm
+{
+	CasesTerm();
+
+	void addCase(Val_t val, Term &&term);
+
+	std::map<Val_t, std::unique_ptr<Term>> cases;
+	std::unique_ptr<Term> body;
+};
+
 class Term
 {
 	using Term_t = std::variant<
-		ValTerm, NilTerm, VarContTerm, AbsTerm, AppTerm
+		NilTerm, VarContTerm, AbsTerm, AppTerm, ValTerm, CasesTerm
 	>;
 
 public:
 	enum Kind
 	{
-		Val, Nil, VarCont, Abs, App
+		Nil, VarCont, Abs, App, Val, Cases
 	};
 
 	Term();
 	Term(const Term &term) = delete;
 	Term(Term &&term) = default;
 
-	Term(ValTerm &&term);
 	Term(NilTerm &&term);
 	Term(VarContTerm &&term);
 	Term(AbsTerm &&term);
 	Term(AppTerm &&term);
+	Term(ValTerm &&term);
+	Term(CasesTerm &&term);
 
 	Term &operator=(const Term &term) = delete;
 	Term &operator=(Term &&term) = default;
 
 	Kind kind() const;
 
-	const ValTerm &asVal() const;
 	const NilTerm &asNil() const;
 	const VarContTerm &asVarCont() const;
 	const AbsTerm &asAbs() const;
 	const AppTerm &asApp() const;
+	const ValTerm &asVal() const;
+	const CasesTerm &asCases() const;
 
 private:
 	Kind m_Kind;
