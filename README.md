@@ -8,24 +8,24 @@ A parser and interpreter for a C-inspired Functional Machine Calculus (FMC) vari
 Program which pushes (prints) `0` to the output stream. 
 
 ```
-write = (<a> . <x> . a[x])
-print = ([out] . write)
+write = (<^a> . <x> . a[x])
+print = ([#out] . write)
 main  = ([0] . print)
 ```
 
 The function `print` is defined in terms of a more general variant called `write` which parameterizes the location to write to and the term to write.
 
-How about a linked-list ? Let's define function `create` to create a linked-list and function `push_back` to push elements to its tail.
+How about a linked-list ? Let's define function `LinkedList` to create a linked-list and function `push_back` to push elements to its tail.
 
 ```
-create = (
-    <v> . new<hp> . hp[v] . hp[0] . [hp]
+LinkedList = (
+    <v> . new<^p> . [#null]p . [v]p . [#p]
 )
 
 push_back = (
-    <v> . <hp> . hp<hnp> . hp<hv> . [hnp] . (
-        0         -> [v] . create . <np> . hp[hv] . hp[np],
-        otherwise -> hp[hv] . hp[hnp] . [hnp] . [v] . push_back
+    <v> . <^p> . p<pv> . p<^pp> . [#pp] . (
+        null      -> [v] . LinkedList . <^np> . [#np]pp . [v]pp,
+        otherwise -> [v]p . [#pp] . [#pp] . [v] . push_back
     )
 )
 ```
@@ -34,21 +34,23 @@ Let's also define a function `traverse` for traversing every element in order an
 
 ```
 traverse = (
-    <f> . <hp> . hp<hnp> . hp<hv> . hp[hv] . hp[hnp] . [hnp] . (
-        0         -> [hv] . f,
-        otherwise -> [hv] . f . [hnp] . [f] . traverse
+    <f> . <^p> . p<pv> . p<^pp> . [#pp]p . [pv]p . [#pp] . (
+        null      -> [pv] . f,
+        otherwise -> [pv] . f . [#pp] . [f] . traverse
     )
 )
 ```
 
-Create a linked-list with head pointer `hp` by calling `create`, and add elements by calling `push_back`, and print each element by calling `traverse` with the function `<x>.out[x]`.
+Create a linked-list with head pointer `hp` by calling `LinkedList`, and add elements by calling `push_back`, and print each element by calling `traverse` with the function `<x>.[x]out`.
 
 ```
 main = (
-    [1] . create . <hp>
-    . [hp] . [2] . push_back
-    . [hp] . [3] . push_back
-    . [hp] . [<x> . out[x]] . traverse
+    [1] . LinkedList . <^p>
+    . [#p] . [2] . push_back
+    . [#p] . [3] . push_back
+    . [#p] . [4] . push_back
+    . [#p] . [5] . push_back
+    . [#p] . [<x>.[x]out] . traverse
 )
 ```
 

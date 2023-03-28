@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <stack>
+#include <variant>
 
 #include "Config.hpp"
 #include "Lexer.hpp"
@@ -23,10 +24,13 @@ private:
 
 	std::optional<Term> parseTerm();
 
-	std::optional<AbsTerm> parseAbstraction(Var_t loc = std::string(k_DefaultLocId));
-	std::optional<AppTerm> parseApplication(Var_t loc = std::string(k_DefaultLocId));
+	std::optional<VarContTerm> parseVarCont();
+	std::optional<std::variant<AbsTerm, LocAbsTerm>> parseAbstraction();
+	std::optional<std::variant<AppTerm, LocAppTerm>> parseApplication();
 
-	std::optional<std::pair<Val_t, Term>> parseCase();
+	std::optional<ValTerm> parseVal();
+
+	std::optional<std::pair<std::string, Term>> parseCase();
 	std::optional<CasesTerm> parseCases();
 
 private:

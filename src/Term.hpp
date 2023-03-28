@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <variant>
 #include <string>
 #include <map>
@@ -13,60 +14,103 @@ struct NilTerm
 {
 };
 
-struct VarContTerm
+class VarContTerm
 {
-	VarContTerm();
+public:
 	VarContTerm(Var_t var);
+	VarContTerm(Var_t var, Term &&body);
 
-	Var_t var;
-	std::unique_ptr<Term> body;
+	bool is(Var_t var) const;
+
+	Var_t getVar() const;
+	const Term *getBody() const;
+
+private:
+	Var_t m_Var;
+	std::unique_ptr<Term> m_Body;
 };
 
 struct AbsTerm
 {
-	AbsTerm();
-	AbsTerm(Var_t loc, Var_t var);
+	AbsTerm(Loc_t loc);
+	AbsTerm(Loc_t loc, Var_t var);
 
-	Var_t loc;
-	Var_t var;
+	Loc_t loc;
+	std::optional<Var_t> var;
 	std::unique_ptr<Term> body;
 };
 
 struct AppTerm
 {
-	AppTerm();
-	AppTerm(Var_t loc);
+	AppTerm(Loc_t loc);
 
-	Var_t loc;
+	Loc_t loc;
 	std::unique_ptr<Term> arg;
 	std::unique_ptr<Term> body;
 };
 
-struct ValTerm
+struct LocAbsTerm
 {
-	Val_t val;
+	LocAbsTerm(Loc_t loc);
+	LocAbsTerm(Loc_t loc, LocVar_t var);
+
+	Loc_t loc;
+	std::optional<LocVar_t> var;
+	std::unique_ptr<Term> body;
+};
+
+struct LocAppTerm
+{
+	LocAppTerm(Loc_t loc, Loc_t arg);
+
+	Loc_t loc;
+	Loc_t arg;
+	std::unique_ptr<Term> body;
+};
+
+class ValTerm
+{
+public:
+	enum ValKind
+	{
+		Prim, Loc
+	};
+
+	ValTerm(Prim_t prim);
+	ValTerm(Loc_t loc);
+
+	ValKind kind() const;
+
+	Prim_t getPrim() const;
+	Loc_t getLoc() const;
+
+private:
+	ValKind m_Kind;
+	std::variant<Prim_t, Loc_t> m_Val;
 };
 
 struct CasesTerm
 {
 	CasesTerm();
 
-	void addCase(Val_t val, Term &&term);
+	void addCase(std::string id, Term &&term);
 
-	std::map<Val_t, std::unique_ptr<Term>> cases;
+	std::map<std::string, std::unique_ptr<Term>> cases;
 	std::unique_ptr<Term> body;
 };
 
 class Term
 {
 	using Term_t = std::variant<
-		NilTerm, VarContTerm, AbsTerm, AppTerm, ValTerm, CasesTerm
+		NilTerm, VarContTerm, AbsTerm, AppTerm, LocAbsTerm, LocAppTerm,
+		ValTerm, CasesTerm
 	>;
 
 public:
 	enum Kind
 	{
-		Nil, VarCont, Abs, App, Val, Cases
+		/* FCL-FMC    */ Nil, VarCont, Abs, App, LocAbs, LocApp,
+		/* Extensions */ Val, Cases
 	};
 
 	Term();
@@ -77,6 +121,8 @@ public:
 	Term(VarContTerm &&term);
 	Term(AbsTerm &&term);
 	Term(AppTerm &&term);
+	Term(LocAbsTerm &&term);
+	Term(LocAppTerm &&term);
 	Term(ValTerm &&term);
 	Term(CasesTerm &&term);
 
@@ -89,6 +135,8 @@ public:
 	const VarContTerm &asVarCont() const;
 	const AbsTerm &asAbs() const;
 	const AppTerm &asApp() const;
+	const LocAbsTerm &asLocAbs() const;
+	const LocAppTerm &asLocApp() const;
 	const ValTerm &asVal() const;
 	const CasesTerm &asCases() const;
 

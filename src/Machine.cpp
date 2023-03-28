@@ -2,6 +2,34 @@
 
 #include "Utils.hpp"
 
+static std::string varGenerator()
+{
+	constexpr const char *k_Src = "xyzwv";
+	static int ptrs[] = {0, 0, 0, 0, 0};
+
+	std::string str;
+	str += k_Src[ptrs[0] % 5];
+	str += k_Src[ptrs[1] % 5];
+	str += k_Src[ptrs[2] % 5];
+	str += k_Src[ptrs[3] % 5];
+	str += k_Src[ptrs[4] % 5];
+
+	if (ptrs[0] < 5 * 5 * 5 * 5 * 5 - 1)
+	{
+		ptrs[0] = (ptrs[0] + 1); 
+		ptrs[1] = (ptrs[1] + (ptrs[0] % 5 == 0));
+		ptrs[2] = (ptrs[2] + (ptrs[0] % 25 == 0));
+		ptrs[3] = (ptrs[3] + (ptrs[0] % 125 == 0));
+		ptrs[4] = (ptrs[4] + (ptrs[0] % 725 == 0));
+	}
+	else
+	{
+		std::cerr << "Ran out of generator variables !" << std::endl;
+	}
+
+	return str;
+}
+
 Machine::Machine(const FuncDefs_t *funcs)
 	: m_Funcs(funcs)
 {
@@ -9,7 +37,8 @@ Machine::Machine(const FuncDefs_t *funcs)
 
 void Machine::execute()
 {
-	m_BindCtx.clear();
+	m_VarBindCtx.clear();
+	m_LocVarBindCtx.clear();
 	while (!m_Frame.empty())
 	{
 		m_Frame.pop();
@@ -21,12 +50,13 @@ void Machine::execute()
 		std::cerr << "[Machine Error] Program could not load entry point ('main' is not defined)!" << std::endl;
 		return;
 	}
-	m_Frame.push(std::make_pair(&it->second, BoundVars_t()));
+	m_Frame.push(std::make_pair(&it->second, std::make_pair(BoundVars_t(), BoundLocVars_t())));
 
 	while (!m_Frame.empty())
 	{
 		// Copy the term and its bound variables because we pop afterwards
 		auto [term, bound] = m_Frame.top();
+		auto [boundVars, boundLocVars] = bound;
 		m_Frame.pop();
 
 		switch (term->kind())
@@ -40,42 +70,42 @@ void Machine::execute()
 			const VarContTerm &varCont = term->asVarCont();
 
 			// Push continuation term to frame
-			m_Frame.push(std::make_pair(varCont.body.get(), bound));
+			m_Frame.push(std::make_pair(varCont.getBody(), std::make_pair(boundVars, boundLocVars)));
 
 			// Find bound term
-			auto itBound = bound.find(varCont.var);
-			if (itBound != bound.end())
+			auto itBound = boundVars.find(varCont.getVar());
+			if (itBound != boundVars.end())
 			{
 				// Find binding context for bound term
-				auto ItEnv = m_BindCtx.find(itBound->second);
-				if (ItEnv != m_BindCtx.end())
+				auto ItEnv = m_VarBindCtx.find(itBound->second);
+				if (ItEnv != m_VarBindCtx.end())
 				{
 					// Push bound term and its binding context to frame
-					m_Frame.push(std::make_pair(itBound->second, ItEnv->second));
+					m_Frame.push(std::make_pair(itBound->second, std::make_pair(ItEnv->second, boundLocVars)));
 				}
 				else
 				{
-					std::cout << "[WARN] Variable '" << varCont.var << "' "
+					std::cout << "[WARN] Variable '" << varCont.getVar() << "' "
 						<< "is bound to '" << stringifyTerm(*itBound->second) << "' "
 						<< "but did not have an environment binding ! "
 						<< "Be weary of variable capture !"
 						<< std::endl;
 
 					// Push bound term and the global binding context to frame
-					m_Frame.push(std::make_pair(itBound->second, bound));
+					m_Frame.push(std::make_pair(itBound->second, std::make_pair(boundVars, boundLocVars)));
 				}
 			}
 			else
 			{
-				auto it = m_Funcs->find(varCont.var);
-				if (it != m_Funcs->end())
+				auto itFunc = m_Funcs->find(varCont.getVar());
+				if (itFunc != m_Funcs->end())
 				{
 					// Push bound term and a new binding context to frame
-					m_Frame.push(std::make_pair(&it->second, BoundVars_t()));
+					m_Frame.push(std::make_pair(&itFunc->second, std::make_pair(BoundVars_t(), BoundLocVars_t())));
 				}
 				else
 				{
-					std::cout << "[WARN] Variable '" << varCont.var << "' "
+					std::cout << "[WARN] Variable '" << varCont.getVar() << "' "
 						<< "is not bound to anything !"
 						<< std::endl;
 				}
@@ -85,8 +115,6 @@ void Machine::execute()
 		}
 		case Term::Abs:
 		{
-			static Val_t s_NewLoc = k_FirstNewLoc;
-			
 			const AbsTerm &abs = term->asAbs();
 			const Term *toPop;
 
@@ -94,10 +122,10 @@ void Machine::execute()
 				// Default stack
 				if (loc == k_DefaultLoc)
 				{
-					if (!m_Stacks[k_DefaultLoc].empty())
+					if (!m_Stacks[Loc_t(k_DefaultLoc)].empty())
 					{
-						toPop = m_Stacks[k_DefaultLoc].back();
-						m_Stacks[k_DefaultLoc].pop_back();
+						toPop = m_Stacks[Loc_t(k_DefaultLoc)].back();
+						m_Stacks[Loc_t(k_DefaultLoc)].pop_back();
 					}
 					else
 					{
@@ -109,12 +137,12 @@ void Machine::execute()
 				else if (loc == k_NewLoc)
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
+					Loc_t newLoc = varGenerator();
 					Term *term = new Term();
-					*term = ValTerm{s_NewLoc};
+					*term = ValTerm(newLoc);
 					toPop = term;
 
-					m_Stacks[s_NewLoc] = {};
-					s_NewLoc++;
+					m_Stacks[newLoc] = {};
 				}
 				// Input stream
 				else if (loc == k_InputLoc)
@@ -145,7 +173,7 @@ void Machine::execute()
 					}
 					else
 					{
-						std::cout << "[WARN] Abstraction is attempting to bind from empty stack index '"
+						std::cout << "[WARN] Abstraction is attempting to bind from empty stack '"
 							<< loc << "' !"
 							<< std::endl;
 						std::exit(1);
@@ -154,28 +182,17 @@ void Machine::execute()
 			};
 
 			// Reserved stack/stream
-			if (auto locOpt = getLocFromId(abs.loc))
+			if (auto locOpt = getReservedLocFromId(abs.loc))
 			{
 				absActionWithLoc(locOpt.value());
 			}
 			// Generic stack
 			else
 			{
-				auto itBound = bound.find(abs.loc);
-				if (itBound != bound.end())
+				auto itBound = boundLocVars.find(abs.loc);
+				if (itBound != boundLocVars.end())
 				{
-					if (itBound->second->kind() == Term::Val)
-					{
-						// Use value as location
-						const ValTerm &val = itBound->second->asVal();
-						absActionWithLoc(Loc_t(val.val));
-					}
-					else
-					{
-						std::cout << "[WARN] Abstraction location is attemping to bind to a non-value ! "
-							<< std::endl;
-						std::exit(1);
-					}
+					absActionWithLoc(itBound->second);
 				}
 				else
 				{
@@ -187,10 +204,13 @@ void Machine::execute()
 			}
 
 			// Update global binding context for binding variable
-			bound[abs.var] = toPop;
+			if (abs.var)
+			{
+				boundVars[abs.var.value()] = toPop;
+			}
 
 			// Push continuation term to frame
-			m_Frame.push(std::make_pair(abs.body.get(), bound));
+			m_Frame.push(std::make_pair(abs.body.get(), std::make_pair(boundVars, boundLocVars)));
 
 			break;
 		}
@@ -204,39 +224,50 @@ void Machine::execute()
 			{
 				const VarContTerm &varCont = app.arg->asVarCont();
 
-				auto it = bound.find(varCont.var);
-				if (it != bound.end())
+				auto itBound = boundVars.find(varCont.getVar());
+				if (itBound != boundVars.end())
 				{
-					toPush = it->second;
+					toPush = itBound->second;
 				}
 				// Default stack
-				else if (varCont.var == k_DefaultLocId)
+				else if (varCont.is(Var_t(k_DefaultLoc)))
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
 					Term *term = new Term();
-					*term = ValTerm{k_DefaultLoc};
+					*term = ValTerm(Loc_t(k_DefaultLoc));
 					toPush = term;
 				}
-				else if (varCont.var == k_NewLocId)
+				else if (varCont.is(Var_t(k_NewLoc)))
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
 					Term *term = new Term();
-					*term = ValTerm{k_NewLoc};
+					*term = ValTerm(Loc_t(k_NewLoc));
 					toPush = term;
 				}
-				else if (varCont.var == k_InputLocId)
+				else if (varCont.is(Var_t(k_InputLoc)))
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
 					Term *term = new Term();
-					*term = ValTerm{k_InputLoc};
+					*term = ValTerm(Loc_t(k_InputLoc));
 					toPush = term;
 				}
-				else if (varCont.var == k_OutputLocId)
+				else if (varCont.is(Var_t(k_OutputLoc)))
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
 					Term *term = new Term();
-					*term = ValTerm{k_OutputLoc};
+					*term = ValTerm(Loc_t(k_OutputLoc));
 					toPush = term;
+				}
+				else
+				{
+					auto itFunc = m_Funcs->find(varCont.getVar());
+					if (itFunc == m_Funcs->end())
+					{
+						std::cout << "[WARN] Application argument '" << varCont.getVar() << "' "
+							<< "is not bound to anything !"
+							<< std::endl;
+						std::exit(1);
+					}
 				}
 			}
 
@@ -244,7 +275,6 @@ void Machine::execute()
 				// Default stack
 				if (loc == k_DefaultLoc)
 				{
-					Loc_t loc = k_DefaultLoc;
 					m_Stacks[loc].push_back(toPush);
 				}
 				// New stream
@@ -252,7 +282,6 @@ void Machine::execute()
 				{
 					std::cout << "[WARN] Application is attemping to push to new location ! "
 						<< std::endl;
-					printDebug();
 					std::exit(1);
 				}
 				// Input stream
@@ -276,28 +305,17 @@ void Machine::execute()
 			};
 
 			// Reserved stack/stream
-			if (auto locOpt = getLocFromId(app.loc))
+			if (auto locOpt = getReservedLocFromId(app.loc))
 			{
 				appActionWithLoc(locOpt.value());
 			}
 			// Generic stack
 			else
 			{
-				auto itBound = bound.find(app.loc);
-				if (itBound != bound.end())
+				auto itBound = boundLocVars.find(app.loc);
+				if (itBound != boundLocVars.end())
 				{
-					if (itBound->second->kind() == Term::Val)
-					{
-						// Use value as location
-						const ValTerm &val = itBound->second->asVal();
-						appActionWithLoc(Loc_t(val.val));
-					}
-					else
-					{
-						std::cout << "[WARN] Application location is attemping to bind to a non-value ! "
-							<< std::endl;
-						std::exit(1);
-					}
+					appActionWithLoc(itBound->second);
 				}
 				else
 				{
@@ -309,10 +327,211 @@ void Machine::execute()
 			}
 
 			// Update binding context of argument term
-			m_BindCtx[toPush] = bound;
+			m_VarBindCtx[toPush] = boundVars;
 
 			// Push continuation term to frame
-			m_Frame.push(std::make_pair(app.body.get(), bound));
+			m_Frame.push(std::make_pair(app.body.get(), std::make_pair(boundVars, boundLocVars)));
+
+			break;
+		}
+		case Term::LocAbs:
+		{
+			const LocAbsTerm &locAbs = term->asLocAbs();
+			Loc_t toPop;
+
+			auto absActionWithLoc = [&](Loc_t loc) {
+				// New stream
+				if (loc == k_NewLoc)
+				{
+					Loc_t newLoc = varGenerator();
+					toPop = newLoc;
+
+					m_Stacks[newLoc] = {};
+				}
+				// Generic stream
+				else
+				{
+					if (!m_Stacks[loc].empty())
+					{
+						const Term *toPopTerm = m_Stacks[loc].back();
+						
+						if (toPopTerm->kind() == Term::Val)
+						{
+							const ValTerm &val = toPopTerm->asVal();
+
+							if (val.kind() == ValTerm::Loc)
+							{
+								toPop = val.getLoc();
+							}
+							else
+							{
+								std::cout << "[WARN] Location abstraction is attempting to bind non-location-value'"
+									<< std::endl;
+								std::exit(1);
+							}
+						}
+						else
+						{
+							std::cout << "[WARN] Location abstraction is attempting to bind non-value'"
+								<< std::endl;
+							std::exit(1);
+						}
+						
+						m_Stacks[loc].pop_back();
+					}
+					else
+					{
+						std::cout << "[WARN] Location abstraction is attempting to bind from empty location '"
+							<< loc << "' !"
+							<< std::endl;
+						std::exit(1);
+					}
+				}
+			};
+
+			// Reserved stack/stream
+			if (auto locOpt = getReservedLocFromId(locAbs.loc))
+			{
+				absActionWithLoc(locOpt.value());
+			}
+			// Generic stack
+			else
+			{
+				auto itBound = boundLocVars.find(locAbs.loc);
+				if (itBound != boundLocVars.end())
+				{
+					absActionWithLoc(itBound->second);
+				}
+				else
+				{
+					std::cout << "[WARN] Location abstraction location '" << locAbs.loc << "' "
+						<< "is not bound to anything !"
+						<< std::endl;
+					std::exit(1);
+				}
+			}
+
+			// Update global binding context for binding variable
+			if (locAbs.var)
+			{
+				boundLocVars[locAbs.var.value()] = toPop;
+			}
+
+			// Push continuation term to frame
+			m_Frame.push(std::make_pair(locAbs.body.get(), std::make_pair(boundVars, boundLocVars)));
+
+			break;
+		}
+		case Term::LocApp:
+		{
+			const LocAppTerm &locApp = term->asLocApp();
+			const Term *toPush;
+
+			// Find and push argument term to stack
+			auto it = boundLocVars.find(locApp.arg);
+			if (it != boundLocVars.end())
+			{
+				Term *term = new Term();
+				*term = ValTerm(Loc_t(it->second));
+				toPush = term;
+			}
+			// Default stack
+			else if (locApp.arg == k_DefaultLoc)
+			{
+				// Need some way to generate 'new' terms without leaking memory :/
+				Term *term = new Term();
+				*term = ValTerm(Loc_t(k_DefaultLoc));
+				toPush = term;
+			}
+			else if (locApp.arg == k_NewLoc)
+			{
+				// Need some way to generate 'new' terms without leaking memory :/
+				Term *term = new Term();
+				*term = ValTerm(Loc_t(k_NewLoc));
+				toPush = term;
+			}
+			else if (locApp.arg == k_InputLoc)
+			{
+				// Need some way to generate 'new' terms without leaking memory :/
+				Term *term = new Term();
+				*term = ValTerm(Loc_t(k_InputLoc));
+				toPush = term;
+			}
+			else if (locApp.arg == k_OutputLoc)
+			{
+				// Need some way to generate 'new' terms without leaking memory :/
+				Term *term = new Term();
+				*term = ValTerm(Loc_t(k_OutputLoc));
+				toPush = term;
+			}
+			else
+			{
+				std::cout << "[WARN] Location application argument '" << locApp.arg << "' "
+					<< "is not bound to anything !"
+					<< std::endl;
+				std::exit(1);
+			}
+
+			auto appActionWithLoc = [&](Var_t loc) {
+				// Default stack
+				if (loc == k_DefaultLoc)
+				{
+					m_Stacks[loc].push_back(toPush);
+				}
+				// New stream
+				else if (loc == k_NewLoc)
+				{
+					std::cout << "[WARN] Location application is attemping to push to new location ! "
+						<< std::endl;
+					std::exit(1);
+				}
+				// Input stream
+				else if (loc == k_InputLoc)
+				{
+					std::cout << "[WARN] Location application is attemping to push to input location ! "
+						<< std::endl;
+					std::exit(1);
+				}
+				// Output stream
+				else if (loc == k_OutputLoc)
+				{
+					// Basic 'cheaty' implementation
+					std::cout << stringifyTerm(*toPush) << std::endl;
+				}
+				// Generic stream
+				else
+				{
+					m_Stacks[loc].push_back(toPush);
+				}
+			};
+
+			// Reserved stack/stream
+			if (auto locOpt = getReservedLocFromId(locApp.loc))
+			{
+				appActionWithLoc(locOpt.value());
+			}
+			// Generic stack
+			else
+			{
+				auto itBound = boundLocVars.find(locApp.loc);
+				if (itBound != boundLocVars.end())
+				{
+					appActionWithLoc(itBound->second);
+				}
+				else
+				{
+					std::cout << "[WARN] Location application location '" << locApp.loc << "' "
+						<< "is not bound to anything !"
+						<< std::endl;
+					std::exit(1);
+				}
+			}
+
+			// Update binding context of argument term
+			m_LocVarBindCtx[toPush] = boundLocVars;
+
+			// Push continuation term to frame
+			m_Frame.push(std::make_pair(locApp.body.get(), std::make_pair(boundVars, boundLocVars)));
 
 			break;
 		}
@@ -330,12 +549,12 @@ void Machine::execute()
 			const Term *toPop;
 
 			// Push continuation term to frame
-			m_Frame.push(std::make_pair(cases.body.get(), bound));
+			m_Frame.push(std::make_pair(cases.body.get(), std::make_pair(boundVars, boundLocVars)));
 
-			if (!m_Stacks[k_DefaultLoc].empty())
+			if (!m_Stacks[Loc_t(k_DefaultLoc)].empty())
 			{
-				toPop = m_Stacks[k_DefaultLoc].back();
-				m_Stacks[k_DefaultLoc].pop_back();
+				toPop = m_Stacks[Var_t(k_DefaultLoc)].back();
+				m_Stacks[Loc_t(k_DefaultLoc)].pop_back();
 			}
 			else
 			{
@@ -347,25 +566,36 @@ void Machine::execute()
 			{
 				const ValTerm &val = toPop->asVal();
 
-				auto itCase = cases.cases.find(val.val);
-				if (itCase != cases.cases.end())
+				if (val.kind() == ValTerm::Prim)
 				{
-					// Push case term and the global binding context to frame
-					m_Frame.push(std::make_pair(itCase->second.get(), bound));
+					std::cout << "[WARN] Cases are implemented for primitives !"
+						<< std::endl;
+					std::exit(1);
 				}
-				else
+				else if (val.kind() == ValTerm::Loc)
 				{
-					itCase = cases.cases.find(static_cast<Val_t>(-1));
+					Loc_t loc = val.getLoc();
+
+					auto itCase = cases.cases.find(loc);
 					if (itCase != cases.cases.end())
 					{
 						// Push case term and the global binding context to frame
-						m_Frame.push(std::make_pair(itCase->second.get(), bound));
+						m_Frame.push(std::make_pair(itCase->second.get(), std::make_pair(boundVars, boundLocVars)));
 					}
 					else
 					{
-						std::cout << "[WARN] Cases could not match value and did not have an 'otherwise' pattern !"
-									<< std::endl;
-						std::exit(1);
+						itCase = cases.cases.find("otherwise");
+						if (itCase != cases.cases.end())
+						{
+							// Push case term and the global binding context to frame
+							m_Frame.push(std::make_pair(itCase->second.get(), std::make_pair(boundVars, boundLocVars)));
+						}
+						else
+						{
+							std::cout << "[WARN] Cases could not match value and did not have an 'otherwise' pattern !"
+										<< std::endl;
+							std::exit(1);
+						}
 					}
 				}
 			}
@@ -388,13 +618,13 @@ void Machine::printDebug()
 
 	for (auto itStacks = m_Stacks.begin(); itStacks != m_Stacks.end(); ++itStacks)
 	{
-		if (auto idOpt = getIdFromLoc(itStacks->first))
+		if (auto idOpt = getIdFromReservedLoc(itStacks->first))
 		{
-			std::cout << "  -- Location " << idOpt.value() << std::endl;
+			std::cout << "  -- Location (Reserved) " << idOpt.value() << std::endl;
 		}
 		else
 		{
-			std::cout << "  -- Location index " << static_cast<uint32_t>(itStacks->first) << std::endl;
+			std::cout << "  -- Location " << itStacks->first << std::endl;
 		}
 
 		for (auto itStack = itStacks->second.rbegin(); itStack != itStacks->second.rend(); ++itStack)
@@ -412,7 +642,7 @@ void Machine::printDebug()
 	std::cout << "--------------------" << std::endl;
 	std::cout << "--- Bind Context ---" << std::endl;
 
-	for (auto itBindCtx = m_BindCtx.begin(); itBindCtx != m_BindCtx.end(); ++itBindCtx)
+	for (auto itBindCtx = m_VarBindCtx.begin(); itBindCtx != m_VarBindCtx.end(); ++itBindCtx)
 	{
 		std::cout << "  -- Binds for term " << stringifyTerm(*(*itBindCtx).first) << std::endl;
 
@@ -422,7 +652,7 @@ void Machine::printDebug()
 		}
 
 		auto itBindCtxCopy = itBindCtx;
-		if (!(++itBindCtxCopy == m_BindCtx.end()))
+		if (!(++itBindCtxCopy == m_VarBindCtx.end()))
 		{
 			std::cout << std::endl;
 		}

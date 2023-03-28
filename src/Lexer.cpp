@@ -53,10 +53,20 @@ const std::string &Lexer::getBuffer() const
 
 Token Lexer::getToken() const
 {
-	return m_Token;
+	return m_PrevToken;
 }
 
 const std::string &Lexer::getTokenBuffer() const
+{
+	return m_PrevTokenBuffer;
+}
+
+Token Lexer::peekToken() const
+{
+	return m_Token;
+}
+
+const std::string &Lexer::peekTokenBuffer() const
 {
 	return m_TokenBuffer;
 }
@@ -79,6 +89,11 @@ void Lexer::advance()
 		{
 			lexError("Unrecognised token !", *this);
 		}
+	}
+	else if (m_Token == Token::Eof)
+	{
+		m_PrevToken = m_Token;
+		m_PrevTokenBuffer = m_TokenBuffer;
 	}
 }
 
@@ -132,7 +147,7 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 	}
 	else if (c == '*')
 	{
-		return std::make_pair(Token::Astx, buffer);
+		return std::make_pair(Token::Asterisk, buffer);
 	}
 	else if (c == '.')
 	{
@@ -140,11 +155,23 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 	}
 	else if (c == '=')
 	{
-		return std::make_pair(Token::Eql, buffer);
+		return std::make_pair(Token::Equal, buffer);
 	}
 	else if (c == ',')
 	{
 		return std::make_pair(Token::Comma, buffer);
+	}
+	else if (c == '_')
+	{
+		return std::make_pair(Token::Underscore, buffer);
+	}
+	else if (c == '^')
+	{
+		return std::make_pair(Token::Caret, buffer);
+	}
+	else if (c == '#')
+	{
+		return std::make_pair(Token::Hash, buffer);
 	}
 	else if (c == '-')
 	{
@@ -189,7 +216,7 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 		m_Stream->putback(c);
 		m_Buffer.pop_back();
 
-		return std::make_pair(Token::Val, buffer);
+		return std::make_pair(Token::Primitive, buffer);
 	}
 
 	return std::nullopt;

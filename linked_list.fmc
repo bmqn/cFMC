@@ -1,41 +1,49 @@
-create = (
-    <v> . new<hp> . hp[v] . hp[0] . [hp]
+write = (
+	<^a> . <x> . [x]a
+)
+
+print = (
+	[#out] . write
+)
+
+true  = (<a> . <b> . a)
+false = (<a> . <b> . b)
+
+if = (
+	<b> . <a> . <p> . [b] . [a] . p
+)
+
+LinkedList = (
+	<v> . new<^p> . [#null]p . [v]p . [#p]
 )
 
 push_back = (
-    <v> . <hp> . hp<hnp> . hp<hv> . [hnp] . (
-        0         -> [v] . create . <np> . hp[hv] . hp[np],
-        otherwise -> hp[hv] . hp[hnp] . [hnp] . [v] . push_back
-    )
+	<v> . <^p> . p<pv> . p<^pp> . [#pp] . (
+		null      -> [v] . LinkedList . <^np> . [#np]pp . [v]pp,
+		otherwise -> [v]p . [#pp] . [#pp] . [v] . push_back
+	)
 )
 
 traverse = (
-    <f> . <hp> . hp<hnp> . hp<hv> . hp[hv] . hp[hnp] . [hnp] . (
-        0         -> [hv] . f,
-        otherwise -> [hv] . f . [hnp] . [f] . traverse
+    <f> . <^p> . p<pv> . p<^pp> . [#pp]p . [pv]p . [#pp] . (
+        null      -> [pv] . f,
+        otherwise -> [pv] . f . [#pp] . [f] . traverse
     )
 )
 
 rtraverse = (
-    <f> . <hp> . hp<hnp> . hp<hv> . hp[hv] . hp[hnp] . [hnp] . (
-        0         -> [hv] . f,
-        otherwise -> [hv] . [hnp] . [f] . rtraverse . f
+    <f> . <^p> . p<pv> . p<^pp> . [#pp]p . [pv]p . [#pp] . (
+        null      -> [pv] . f,
+        otherwise -> [pv] . [#pp] . [f] . rtraverse . f
     )
 )
 
 main = (
-    [1] . create . <hp1>
-    . [hp1] . [2] . push_back
-    . [hp1] . [3] . push_back
-    . [hp1] . [4] . push_back
-    . [hp1] . [5] . push_back
-    . [hp1] . [<x> . out[x]] . traverse
-    . [hp1] . [<x> . out[x]] . rtraverse .
-    [[1] . <x> . out[x]] . create . <hp2>
-    . [hp2] . [[2] . <x> . out[x]] . push_back
-    . [hp2] . [[3] . <x> . out[x]] . push_back
-    . [hp2] . [[4] . <x> . out[x]] . push_back
-    . [hp2] . [[5] . <x> . out[x]] . push_back
-    . [hp2] . [<f> . out[f] . f] . traverse
-    . [hp2] . [<f> . out[f] . f] . rtraverse
+    [1] . LinkedList . <^p>
+    . [#p] . [2] . push_back
+    . [#p] . [3] . push_back
+    . [#p] . [4] . push_back
+    . [#p] . [5] . push_back
+    . [#p] . [print] . traverse
+    . [#p] . [print] . rtraverse
 )

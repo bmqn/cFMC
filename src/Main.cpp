@@ -22,23 +22,23 @@ int main()
 {
 	// --- Basics ---
 
-	std::string ex0  = "main = ([0] . out[x])";
-	std::string ex1  = "main = (in<x> . out[x])";
-	std::string ex3  = "main = ([in<x> . out[x]] . <echo> . echo)";
+	std::string ex0  = "main = ([0] . <x> . [x]out)";
+	std::string ex1  = "main = (in<x> . [x]out)";
+	std::string ex3  = "main = ([in<x> . [x]out] . <echo> . echo)";
 	
 	// -- Function definitions ---
 	
 	std::string ex10  =
-		"print = (<x> . out[x])"
-		"main  = ([zero] . print . [one] . print)";
+		"print = (<x> . [x]out)"
+		"main  = ([0] . print . [1] . print)";
 	
 	std::string ex11 =
 		"swap = (<x> . <y> . [x] . [y])"
-		"main = ([zero] . [one] . swap)";
+		"main = ([0] . [1] . swap)";
 	
 	std::string ex12 =
 		"swap = (<x> . <y> . [x] . [y])"
-		"main = ([[zero] . <x> . out[x]] . [[one] . <x> . out[x]] . swap . <f> . f . <f> . f)";
+		"main = ([[0] . <x> . [x]out] . [[1] . <x> . [x]out] . swap . <f> . f . <f> . f)";
 
 	// -- Recursion --
 
@@ -46,33 +46,37 @@ int main()
 		"true  = (<a> . <b> . a)"
 		"false = (<a> . <b> . b)"
 		"if    = (<b> . <a> . <p> . [b] . [a] . p)"
-		"f     = (<p> . [p] . [out[recurse] . in<p> . [p] . f] . [out[exit]] . if)"
+		"f     = (<p> . [p] . [in<p> . [p] . f] . [[wank]out . *] . if)"
 		"main  = ([true] . f)";
 
 	// -- First-class locations
 
 	std::string ex30 =
-		"write = (<a> . <x> . a[x])"
-		"print = ([out] . write)"
-		"main  = ([xyz] . print)";
+		"write = (<^a> . <x> . [x]a)"
+		"print = ([#out] . write)"
+		"main  = ([0] . print)";
 
 	std::string ex31 =
-		"main  = ([new] . <a> . a<b> . out[b] . b[hello] . b<x> . out[x] . out[a])";
-
-	std::string ex32 =
-		"write = (<a> . <x> . a[x])"
-		"true  = (<a> . <b> . a)"
-		"false = (<a> . <b> . b)"
-		"if    = (<b> . <a> . <p> . [b] . [a] . p)"
-		"main = ([xyz] . in<p> . [p] . [[out]] . [new<a> . [a]] . if . write)";
+		"get   = (<^a> . a<x> . [x]a . [x])"
+		"write = (<^a> . <x> . [x]a)"
+		"print = ([#out] . write)"
+		"main  = (new<^a> . [5]a . new<^b> . [2]b . [#a] . get . print . [#b] . get . print)";
 
 	// -- Data structures
 
-	std::string ex40 = readFile("linked_list.fmc");
+	std::string ex40 =
+		"write = (<^a> . <x> . [x]a)"
+		"print = ([#out] . write)"
+		"Pair = (<y> . <x> . new<^p> . [y]p . [x]p . [#p])"
+		"fst  = (<^p> . p<x> . [x]p . [x])"
+		"snd  = (<^p> . p<x> . p<y> . [y]p . [x]p . [y])"
+		"main = ([5] . [2] . Pair . <^p> . [#p] . snd . print . [#p] . fst . print)";
+
+	std::string ex41 = readFile("linked_list.fmc");
 
 	{
 		Parser parser;
-		Program program = parser.parseProgram(ex40); // <-- Change example here ! 
+		Program program = parser.parseProgram(ex41); // <-- Change example here ! 
 		program.load([](const FuncDefs_t *funcs) {
 			Machine machine(funcs);
 			machine.execute();

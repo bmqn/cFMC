@@ -11,17 +11,20 @@ enum class Token
 {
 	Nothing, // Represents nothing
 
-	Lb, Rb, // ()
-	Lab, Rab, // <>
-	Lsb, Rsb, // []
-	
-	Astx, // *
+	Lb, Rb, // ( )
+	Lab, Rab, // < >
+	Lsb, Rsb, // [ ]
+	Asterisk, // *
 	Dot, // .
-	Eql, // =
+	Equal, // =
 	Comma, // ,
+	Underscore, // _
+	Caret, // ^
+	Hash, // #
+
 	Arrow, // ->
 
-	Val, // Value, i.e. integer, bool, etc.
+	Primitive, // Primitive, i.e. integer, bool, etc.
 	Id, // Identifier, i.e. location name, variable name, function name etc.
 
 	Eof // End of line
@@ -44,6 +47,9 @@ public:
 
 	Token getToken() const;
 	const std::string &getTokenBuffer() const;
+
+	Token peekToken() const;
+	const std::string &peekTokenBuffer() const;
 
 	void advance();
 

@@ -11,8 +11,12 @@
 using Stacks_t = std::unordered_map<Loc_t, std::vector<const Term *>>;
 
 using BoundVars_t = std::unordered_map<Var_t, const Term *>;
-using BindCtx_t = std::unordered_map<const Term *, BoundVars_t>;
-using Frame_t   = std::stack<std::pair<const Term *, BoundVars_t>>;
+using BoundLocVars_t = std::unordered_map<LocVar_t, Loc_t>;
+
+template<typename BoundT>
+using BindCtx_t = std::unordered_map<const Term *, BoundT>;
+
+using Frame_t = std::stack<std::tuple<const Term *, std::pair<BoundVars_t, BoundLocVars_t>>>;
 
 class Machine
 {
@@ -34,7 +38,8 @@ private:
 	
 	Stacks_t m_Stacks;
 
-	// Look into closures !
-	BindCtx_t m_BindCtx;
+	// TODO: Look into closures !
+	BindCtx_t<BoundVars_t> m_VarBindCtx;
+	BindCtx_t<BoundLocVars_t> m_LocVarBindCtx;
 	Frame_t m_Frame;
 };
