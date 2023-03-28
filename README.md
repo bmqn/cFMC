@@ -19,18 +19,18 @@ How about a linked-list ? Let's define function `LinkedList` to create a linked-
 
 ```
 LinkedList = (
-    <v> . new<^p> . [#null]p . [v]p . [#p]
+	<v> . new<^p> . [#null]p . [v]p . [#p]
 )
 
 push_back = (
-    <v> . <^p> . p<pv> . p<^pp> . [#pp] . (
-        null      -> [v] . LinkedList . <^np> . [#np]pp . [v]pp,
-        otherwise -> [v]p . [#pp] . [#pp] . [v] . push_back
-    )
+	<v> . <^p> . p<pv> . p<^pp> . [#pp] . (
+		null      -> [v] . LinkedList . <^npp> . [#npp]p . [pv]p,
+		otherwise -> [#pp]p . [pv]p . [#pp] . [v] . push_back
+	)
 )
 ```
 
-Let's also define a function `traverse` for traversing every element in order and calling a function `f` on each.
+Let's also define a function `traverse` for traversing the list in order and running a function `f` on each element.
 
 ```
 traverse = (
@@ -41,16 +41,20 @@ traverse = (
 )
 ```
 
-Create a linked-list with head pointer `hp` by calling `LinkedList`, and add elements by calling `push_back`, and print each element by calling `traverse` with the function `<x>.[x]out`.
+Create a linked-list called `p` by calling `LinkedList`, then add elements by calling `push_back`, then print each element by calling `traverse` with the function `print`.
 
 ```
+print = (
+    <x> . [x]out
+)
+
 main = (
     [1] . LinkedList . <^p>
     . [#p] . [2] . push_back
     . [#p] . [3] . push_back
     . [#p] . [4] . push_back
     . [#p] . [5] . push_back
-    . [#p] . [<x>.[x]out] . traverse
+    . [#p] . [print] . traverse
 )
 ```
 

@@ -2,7 +2,7 @@
 
 #include "Utils.hpp"
 
-static std::string varGenerator()
+static std::string locGenerator()
 {
 	constexpr const char *k_Src = "xyzwv";
 	static int ptrs[] = {0, 0, 0, 0, 0};
@@ -27,7 +27,7 @@ static std::string varGenerator()
 		std::cerr << "Ran out of generator variables !" << std::endl;
 	}
 
-	return str;
+	return "loc:" + str;
 }
 
 Machine::Machine(const FuncDefs_t *funcs)
@@ -119,25 +119,11 @@ void Machine::execute()
 			const Term *toPop;
 
 			auto absActionWithLoc = [&](Loc_t loc) {
-				// Default stack
-				if (loc == k_DefaultLoc)
-				{
-					if (!m_Stacks[Loc_t(k_DefaultLoc)].empty())
-					{
-						toPop = m_Stacks[Loc_t(k_DefaultLoc)].back();
-						m_Stacks[Loc_t(k_DefaultLoc)].pop_back();
-					}
-					else
-					{
-						std::cerr << "[Machine Error] Abstraction is attempting to bind from empty stack !" << std::endl;
-						std::exit(1);
-					}
-				}
 				// New stream
-				else if (loc == k_NewLoc)
+				if (loc == k_NewLoc)
 				{
 					// Need some way to generate 'new' terms without leaking memory :/
-					Loc_t newLoc = varGenerator();
+					Loc_t newLoc = locGenerator();
 					Term *term = new Term();
 					*term = ValTerm(newLoc);
 					toPop = term;
@@ -160,6 +146,13 @@ void Machine::execute()
 				else if (loc == k_OutputLoc)
 				{
 					std::cerr << "[Machine Error] Abstraction is attemping to bind from output location ! "
+						<< std::endl;
+					std::exit(1);
+				}
+				// Null stream
+				else if (loc == k_NullLoc)
+				{
+					std::cerr << "[Machine Error] Abstraction is attemping to bind from null location ! "
 						<< std::endl;
 					std::exit(1);
 				}
@@ -229,56 +222,60 @@ void Machine::execute()
 				{
 					toPush = itBound->second;
 				}
-				// Default stack
-				else if (varCont.is(Var_t(k_DefaultLoc)))
-				{
-					// Need some way to generate 'new' terms without leaking memory :/
-					Term *term = new Term();
-					*term = ValTerm(Loc_t(k_DefaultLoc));
-					toPush = term;
-				}
-				else if (varCont.is(Var_t(k_NewLoc)))
-				{
-					// Need some way to generate 'new' terms without leaking memory :/
-					Term *term = new Term();
-					*term = ValTerm(Loc_t(k_NewLoc));
-					toPush = term;
-				}
-				else if (varCont.is(Var_t(k_InputLoc)))
-				{
-					// Need some way to generate 'new' terms without leaking memory :/
-					Term *term = new Term();
-					*term = ValTerm(Loc_t(k_InputLoc));
-					toPush = term;
-				}
-				else if (varCont.is(Var_t(k_OutputLoc)))
-				{
-					// Need some way to generate 'new' terms without leaking memory :/
-					Term *term = new Term();
-					*term = ValTerm(Loc_t(k_OutputLoc));
-					toPush = term;
-				}
 				else
 				{
-					auto itFunc = m_Funcs->find(varCont.getVar());
-					if (itFunc == m_Funcs->end())
+					if (varCont.is(Var_t(k_DefaultLoc)))
 					{
-						std::cerr << "[Machine Error] Application argument '" << varCont.getVar() << "' "
-							<< "is not bound to anything !"
-							<< std::endl;
-						std::exit(1);
+						// Need some way to generate 'new' terms without leaking memory :/
+						Term *term = new Term();
+						*term = ValTerm(Loc_t(k_DefaultLoc));
+						toPush = term;
+					}
+					else if (varCont.is(Var_t(k_NewLoc)))
+					{
+						// Need some way to generate 'new' terms without leaking memory :/
+						Term *term = new Term();
+						*term = ValTerm(Loc_t(k_NewLoc));
+						toPush = term;
+					}
+					else if (varCont.is(Var_t(k_InputLoc)))
+					{
+						// Need some way to generate 'new' terms without leaking memory :/
+						Term *term = new Term();
+						*term = ValTerm(Loc_t(k_InputLoc));
+						toPush = term;
+					}
+					else if (varCont.is(Var_t(k_OutputLoc)))
+					{
+						// Need some way to generate 'new' terms without leaking memory :/
+						Term *term = new Term();
+						*term = ValTerm(Loc_t(k_OutputLoc));
+						toPush = term;
+					}
+					else if (varCont.is(Var_t(k_NullLoc)))
+					{
+						// Need some way to generate 'new' terms without leaking memory :/
+						Term *term = new Term();
+						*term = ValTerm(Loc_t(k_NullLoc));
+						toPush = term;
+					}
+					else
+					{
+						auto itFunc = m_Funcs->find(varCont.getVar());
+						if (itFunc == m_Funcs->end())
+						{
+							std::cerr << "[Machine Error] Application argument '" << varCont.getVar() << "' "
+								<< "is not bound to anything !"
+								<< std::endl;
+							std::exit(1);
+						}
 					}
 				}
 			}
 
 			auto appActionWithLoc = [&](Loc_t loc) {
-				// Default stack
-				if (loc == k_DefaultLoc)
-				{
-					m_Stacks[loc].push_back(toPush);
-				}
 				// New stream
-				else if (loc == k_NewLoc)
+				if (loc == k_NewLoc)
 				{
 					std::cerr << "[Machine Error] Application is attemping to push to new location ! "
 						<< std::endl;
@@ -296,6 +293,11 @@ void Machine::execute()
 				{
 					// Basic 'cheaty' implementation
 					std::cout << stringifyTerm(*toPush) << std::endl;
+				}
+				// Null stream
+				else if (loc == k_OutputLoc)
+				{
+					// Do nothing !
 				}
 				// Generic stream
 				else
@@ -343,10 +345,31 @@ void Machine::execute()
 				// New stream
 				if (loc == k_NewLoc)
 				{
-					Loc_t newLoc = varGenerator();
+					Loc_t newLoc = locGenerator();
 					toPop = newLoc;
 
 					m_Stacks[newLoc] = {};
+				}
+				// Input stream
+				else if (loc == k_InputLoc)
+				{
+					std::cerr << "[Machine Error] Location abstraction is attemping to bind from input location !"
+						<< std::endl;
+					std::exit(1);
+				}
+				// Output stream
+				else if (loc == k_OutputLoc)
+				{
+					std::cerr << "[Machine Error] Location abstraction is attemping to bind from output location !"
+						<< std::endl;
+					std::exit(1);
+				}
+				// Null stream
+				else if (loc == k_NullLoc)
+				{
+					std::cerr << "[Machine Error] Location abstraction is attemping to bind from null location!"
+						<< std::endl;
+					std::exit(1);
 				}
 				// Generic stream
 				else
@@ -435,7 +458,6 @@ void Machine::execute()
 				*term = ValTerm(Loc_t(it->second));
 				toPush = term;
 			}
-			// Default stack
 			else if (locApp.arg == k_DefaultLoc)
 			{
 				// Need some way to generate 'new' terms without leaking memory :/
@@ -464,6 +486,13 @@ void Machine::execute()
 				*term = ValTerm(Loc_t(k_OutputLoc));
 				toPush = term;
 			}
+			else if (locApp.arg == k_NullLoc)
+			{
+				// Need some way to generate 'new' terms without leaking memory :/
+				Term *term = new Term();
+				*term = ValTerm(Loc_t(k_NullLoc));
+				toPush = term;
+			}
 			else
 			{
 				std::cerr << "[Machine Error] Location application argument '" << locApp.arg << "' "
@@ -473,13 +502,8 @@ void Machine::execute()
 			}
 
 			auto appActionWithLoc = [&](Var_t loc) {
-				// Default stack
-				if (loc == k_DefaultLoc)
-				{
-					m_Stacks[loc].push_back(toPush);
-				}
 				// New stream
-				else if (loc == k_NewLoc)
+				if (loc == k_NewLoc)
 				{
 					std::cerr << "[Machine Error] Location application is attemping to push to new location ! "
 						<< std::endl;
@@ -497,6 +521,11 @@ void Machine::execute()
 				{
 					// Basic 'cheaty' implementation
 					std::cout << stringifyTerm(*toPush) << std::endl;
+				}
+				// Null stream
+				else if (loc == k_OutputLoc)
+				{
+					// Do nothing !
 				}
 				// Generic stream
 				else
@@ -538,7 +567,7 @@ void Machine::execute()
 		case Term::Val:
 		{
 			std::cerr << "[Machine Error] Value term is being executed by machine ! "
-				<< "Perhaps you forgot to push something to the stack !"
+				<< "Perhaps something wasn't pushed to the stack !"
 				<< std::endl;
 			
 			break;
@@ -639,24 +668,24 @@ void Machine::printDebug()
 		}
 	}
 
-	std::cerr << "--------------------" << std::endl;
-	std::cerr << "--- Bind Context ---" << std::endl;
+	// std::cerr << "--------------------" << std::endl;
+	// std::cerr << "--- Bind Context ---" << std::endl;
 
-	for (auto itBindCtx = m_VarBindCtx.begin(); itBindCtx != m_VarBindCtx.end(); ++itBindCtx)
-	{
-		std::cerr << "  -- Binds for term " << stringifyTerm(*(*itBindCtx).first) << std::endl;
+	// for (auto itBindCtx = m_VarBindCtx.begin(); itBindCtx != m_VarBindCtx.end(); ++itBindCtx)
+	// {
+	// 	std::cerr << "  -- Binds for term " << stringifyTerm(*(*itBindCtx).first) << std::endl;
 
-		for (auto itBinds = itBindCtx->second.begin(); itBinds != itBindCtx->second.end(); ++itBinds)
-		{
-			std::cerr << "    " << (*itBinds).first << " --> " << stringifyTerm(*(*itBinds).second) << std::endl;
-		}
+	// 	for (auto itBinds = itBindCtx->second.begin(); itBinds != itBindCtx->second.end(); ++itBinds)
+	// 	{
+	// 		std::cerr << "    " << (*itBinds).first << " --> " << stringifyTerm(*(*itBinds).second) << std::endl;
+	// 	}
 
-		auto itBindCtxCopy = itBindCtx;
-		if (!(++itBindCtxCopy == m_VarBindCtx.end()))
-		{
-			std::cerr << std::endl;
-		}
-	}
+	// 	auto itBindCtxCopy = itBindCtx;
+	// 	if (!(++itBindCtxCopy == m_VarBindCtx.end()))
+	// 	{
+	// 		std::cerr << std::endl;
+	// 	}
+	// }
 
 	std::cerr << "--------------------" << std::endl;
 }

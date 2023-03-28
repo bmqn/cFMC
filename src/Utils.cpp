@@ -10,6 +10,7 @@ std::optional<Loc_t> getReservedLocFromId(const std::string_view &id)
 	else if (id == k_NewLoc)     { return Loc_t(k_NewLoc); }
 	else if (id == k_InputLoc)   { return Loc_t(k_InputLoc); }
 	else if (id == k_OutputLoc)  { return Loc_t(k_OutputLoc); }
+	else if (id == k_NullLoc)    { return Loc_t(k_NullLoc); }
 
 	return std::nullopt;
 }
@@ -20,6 +21,7 @@ std::optional<std::string> getIdFromReservedLoc(const Loc_t &loc)
 	else if (loc == k_NewLoc)     { return std::string(k_NewLoc); }
 	else if (loc == k_InputLoc)   { return std::string(k_InputLoc); }
 	else if (loc == k_OutputLoc)  { return std::string(k_OutputLoc); }
+	else if (loc == k_NullLoc)    { return std::string(k_NullLoc); }
 
 	return std::nullopt;
 }
@@ -61,12 +63,34 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 	case Term::App:
 	{
 		const AppTerm &app = term.asApp();
+		termSs << "[" << stringifyTerm(*app.arg) << "]";
 		if (app.loc != k_DefaultLoc)
 		{
 			termSs << app.loc;
 		}
-		termSs << "[" << stringifyTerm(*app.arg) << "]";
 		termPtr = app.body.get();
+		break;
+	}
+	case Term::LocAbs:
+	{
+		const LocAbsTerm &locAbs = term.asLocAbs();
+		if (locAbs.loc != k_DefaultLoc)
+		{
+			termSs << locAbs.loc;
+		}
+		termSs << "<^" << locAbs.var.value_or("_") << ">";
+		termPtr = locAbs.body.get();
+		break;
+	}
+	case Term::LocApp:
+	{
+		const LocAppTerm &locApp = term.asLocApp();
+		termSs << "[#" << locApp.arg << "]";
+		if (locApp.loc != k_DefaultLoc)
+		{
+			termSs << locApp.loc;
+		}
+		termPtr = locApp.body.get();
 		break;
 	}
 	case Term::Val:
@@ -139,12 +163,36 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 		{
 			const AppTerm &app = termPtr->asApp();
 			termSs << " . ";
+			termSs << "[" << stringifyTerm(*app.arg) << "]";
 			if (app.loc != k_DefaultLoc)
 			{
 				termSs << app.loc;
 			}
-			termSs << "[" << stringifyTerm(*app.arg) << "]";
 			termPtr = app.body.get();
+			break;
+		}
+		case Term::LocAbs:
+		{
+			const LocAbsTerm &locAbs = termPtr->asLocAbs();
+			termSs << " . ";
+			if (locAbs.loc != k_DefaultLoc)
+			{
+				termSs << locAbs.loc;
+			}
+			termSs << "<^" << locAbs.var.value_or("_") << ">";
+			termPtr = locAbs.body.get();
+			break;
+		}
+		case Term::LocApp:
+		{
+			const LocAppTerm &locApp = termPtr->asLocApp();
+			termSs << " . ";
+			termSs << "[#" << locApp.arg << "]";
+			if (locApp.loc != k_DefaultLoc)
+			{
+				termSs << locApp.loc;
+			}
+			termPtr = locApp.body.get();
 			break;
 		}
 		case Term::Val:

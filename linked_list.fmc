@@ -6,21 +6,14 @@ print = (
 	[#out] . write
 )
 
-true  = (<a> . <b> . a)
-false = (<a> . <b> . b)
-
-if = (
-	<b> . <a> . <p> . [b] . [a] . p
-)
-
 LinkedList = (
 	<v> . new<^p> . [#null]p . [v]p . [#p]
 )
 
 push_back = (
 	<v> . <^p> . p<pv> . p<^pp> . [#pp] . (
-		null      -> [v] . LinkedList . <^np> . [#np]pp . [v]pp,
-		otherwise -> [v]p . [#pp] . [#pp] . [v] . push_back
+		null      -> [v] . LinkedList . <^npp> . [#npp]p . [pv]p,
+		otherwise -> [#pp]p . [pv]p . [#pp] . [v] . push_back
 	)
 )
 
