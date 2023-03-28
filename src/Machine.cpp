@@ -85,7 +85,7 @@ void Machine::execute()
 				}
 				else
 				{
-					std::cout << "[WARN] Variable '" << varCont.getVar() << "' "
+					std::cerr << "[Machine Error] Variable '" << varCont.getVar() << "' "
 						<< "is bound to '" << stringifyTerm(*itBound->second) << "' "
 						<< "but did not have an environment binding ! "
 						<< "Be weary of variable capture !"
@@ -105,7 +105,7 @@ void Machine::execute()
 				}
 				else
 				{
-					std::cout << "[WARN] Variable '" << varCont.getVar() << "' "
+					std::cerr << "[Machine Error] Variable '" << varCont.getVar() << "' "
 						<< "is not bound to anything !"
 						<< std::endl;
 				}
@@ -129,7 +129,7 @@ void Machine::execute()
 					}
 					else
 					{
-						std::cout << "[WARN] Abstraction is attempting to bind from empty stack !" << std::endl;
+						std::cerr << "[Machine Error] Abstraction is attempting to bind from empty stack !" << std::endl;
 						std::exit(1);
 					}
 				}
@@ -159,7 +159,7 @@ void Machine::execute()
 				// Output stream
 				else if (loc == k_OutputLoc)
 				{
-					std::cout << "[WARN] Abstraction is attemping to bind from output location ! "
+					std::cerr << "[Machine Error] Abstraction is attemping to bind from output location ! "
 						<< std::endl;
 					std::exit(1);
 				}
@@ -173,7 +173,7 @@ void Machine::execute()
 					}
 					else
 					{
-						std::cout << "[WARN] Abstraction is attempting to bind from empty stack '"
+						std::cerr << "[Machine Error] Abstraction is attempting to bind from empty stack '"
 							<< loc << "' !"
 							<< std::endl;
 						std::exit(1);
@@ -196,7 +196,7 @@ void Machine::execute()
 				}
 				else
 				{
-					std::cout << "[WARN] Abstraction location '" << abs.loc << "' "
+					std::cerr << "[Machine Error] Abstraction location '" << abs.loc << "' "
 						<< "is not bound to anything !"
 						<< std::endl;
 					std::exit(1);
@@ -263,7 +263,7 @@ void Machine::execute()
 					auto itFunc = m_Funcs->find(varCont.getVar());
 					if (itFunc == m_Funcs->end())
 					{
-						std::cout << "[WARN] Application argument '" << varCont.getVar() << "' "
+						std::cerr << "[Machine Error] Application argument '" << varCont.getVar() << "' "
 							<< "is not bound to anything !"
 							<< std::endl;
 						std::exit(1);
@@ -280,14 +280,14 @@ void Machine::execute()
 				// New stream
 				else if (loc == k_NewLoc)
 				{
-					std::cout << "[WARN] Application is attemping to push to new location ! "
+					std::cerr << "[Machine Error] Application is attemping to push to new location ! "
 						<< std::endl;
 					std::exit(1);
 				}
 				// Input stream
 				else if (loc == k_InputLoc)
 				{
-					std::cout << "[WARN] Application is attemping to push to input location ! "
+					std::cerr << "[Machine Error] Application is attemping to push to input location ! "
 						<< std::endl;
 					std::exit(1);
 				}
@@ -319,7 +319,7 @@ void Machine::execute()
 				}
 				else
 				{
-					std::cout << "[WARN] Application location '" << app.loc << "' "
+					std::cerr << "[Machine Error] Application location '" << app.loc << "' "
 						<< "is not bound to anything !"
 						<< std::endl;
 					std::exit(1);
@@ -365,14 +365,14 @@ void Machine::execute()
 							}
 							else
 							{
-								std::cout << "[WARN] Location abstraction is attempting to bind non-location-value'"
+								std::cerr << "[Machine Error] Location abstraction is attempting to bind non-location-value'"
 									<< std::endl;
 								std::exit(1);
 							}
 						}
 						else
 						{
-							std::cout << "[WARN] Location abstraction is attempting to bind non-value'"
+							std::cerr << "[Machine Error] Location abstraction is attempting to bind non-value'"
 								<< std::endl;
 							std::exit(1);
 						}
@@ -381,7 +381,7 @@ void Machine::execute()
 					}
 					else
 					{
-						std::cout << "[WARN] Location abstraction is attempting to bind from empty location '"
+						std::cerr << "[Machine Error] Location abstraction is attempting to bind from empty location '"
 							<< loc << "' !"
 							<< std::endl;
 						std::exit(1);
@@ -404,7 +404,7 @@ void Machine::execute()
 				}
 				else
 				{
-					std::cout << "[WARN] Location abstraction location '" << locAbs.loc << "' "
+					std::cerr << "[Machine Error] Location abstraction location '" << locAbs.loc << "' "
 						<< "is not bound to anything !"
 						<< std::endl;
 					std::exit(1);
@@ -466,7 +466,7 @@ void Machine::execute()
 			}
 			else
 			{
-				std::cout << "[WARN] Location application argument '" << locApp.arg << "' "
+				std::cerr << "[Machine Error] Location application argument '" << locApp.arg << "' "
 					<< "is not bound to anything !"
 					<< std::endl;
 				std::exit(1);
@@ -481,14 +481,14 @@ void Machine::execute()
 				// New stream
 				else if (loc == k_NewLoc)
 				{
-					std::cout << "[WARN] Location application is attemping to push to new location ! "
+					std::cerr << "[Machine Error] Location application is attemping to push to new location ! "
 						<< std::endl;
 					std::exit(1);
 				}
 				// Input stream
 				else if (loc == k_InputLoc)
 				{
-					std::cout << "[WARN] Location application is attemping to push to input location ! "
+					std::cerr << "[Machine Error] Location application is attemping to push to input location ! "
 						<< std::endl;
 					std::exit(1);
 				}
@@ -520,7 +520,7 @@ void Machine::execute()
 				}
 				else
 				{
-					std::cout << "[WARN] Location application location '" << locApp.loc << "' "
+					std::cerr << "[Machine Error] Location application location '" << locApp.loc << "' "
 						<< "is not bound to anything !"
 						<< std::endl;
 					std::exit(1);
@@ -537,7 +537,7 @@ void Machine::execute()
 		}
 		case Term::Val:
 		{
-			std::cout << "[WARN] Value term is being executed by machine ! "
+			std::cerr << "[Machine Error] Value term is being executed by machine ! "
 				<< "Perhaps you forgot to push something to the stack !"
 				<< std::endl;
 			
@@ -558,7 +558,7 @@ void Machine::execute()
 			}
 			else
 			{
-				std::cout << "[WARN] Cases is attempting to match from empty stack !" << std::endl;
+				std::cerr << "[Machine Error] Cases is attempting to match from empty stack !" << std::endl;
 				std::exit(1);
 			}
 
@@ -568,7 +568,7 @@ void Machine::execute()
 
 				if (val.kind() == ValTerm::Prim)
 				{
-					std::cout << "[WARN] Cases are implemented for primitives !"
+					std::cerr << "[Machine Error] Cases are not implemented for primitives !"
 						<< std::endl;
 					std::exit(1);
 				}
@@ -592,7 +592,7 @@ void Machine::execute()
 						}
 						else
 						{
-							std::cout << "[WARN] Cases could not match value and did not have an 'otherwise' pattern !"
+							std::cerr << "[Machine Error] Cases could not match value and did not have an 'otherwise' pattern !"
 										<< std::endl;
 							std::exit(1);
 						}
@@ -601,7 +601,7 @@ void Machine::execute()
 			}
 			else
 			{
-				std::cout << "[WARN] Cases is attemping to match a non-value !"
+				std::cerr << "[Machine Error] Cases is attemping to match a non-value !"
 							<< std::endl;
 				std::exit(1);
 			}
@@ -614,49 +614,49 @@ void Machine::execute()
 
 void Machine::printDebug()
 {
-	std::cout << "---- Stacks ----" << std::endl;
+	std::cerr << "---- Stacks ----" << std::endl;
 
 	for (auto itStacks = m_Stacks.begin(); itStacks != m_Stacks.end(); ++itStacks)
 	{
 		if (auto idOpt = getIdFromReservedLoc(itStacks->first))
 		{
-			std::cout << "  -- Location (Reserved) " << idOpt.value() << std::endl;
+			std::cerr << "  -- Location (Reserved) " << idOpt.value() << std::endl;
 		}
 		else
 		{
-			std::cout << "  -- Location " << itStacks->first << std::endl;
+			std::cerr << "  -- Location " << itStacks->first << std::endl;
 		}
 
 		for (auto itStack = itStacks->second.rbegin(); itStack != itStacks->second.rend(); ++itStack)
 		{
-			std::cout << "    " << stringifyTerm(*(*itStack)) << std::endl;
+			std::cerr << "    " << stringifyTerm(*(*itStack)) << std::endl;
 		}
 
 		auto itStacksCopy = itStacks;
 		if (!(++itStacksCopy == m_Stacks.end()))
 		{
-			std::cout << std::endl;
+			std::cerr << std::endl;
 		}
 	}
 
-	std::cout << "--------------------" << std::endl;
-	std::cout << "--- Bind Context ---" << std::endl;
+	std::cerr << "--------------------" << std::endl;
+	std::cerr << "--- Bind Context ---" << std::endl;
 
 	for (auto itBindCtx = m_VarBindCtx.begin(); itBindCtx != m_VarBindCtx.end(); ++itBindCtx)
 	{
-		std::cout << "  -- Binds for term " << stringifyTerm(*(*itBindCtx).first) << std::endl;
+		std::cerr << "  -- Binds for term " << stringifyTerm(*(*itBindCtx).first) << std::endl;
 
 		for (auto itBinds = itBindCtx->second.begin(); itBinds != itBindCtx->second.end(); ++itBinds)
 		{
-			std::cout << "    " << (*itBinds).first << " --> " << stringifyTerm(*(*itBinds).second) << std::endl;
+			std::cerr << "    " << (*itBinds).first << " --> " << stringifyTerm(*(*itBinds).second) << std::endl;
 		}
 
 		auto itBindCtxCopy = itBindCtx;
 		if (!(++itBindCtxCopy == m_VarBindCtx.end()))
 		{
-			std::cout << std::endl;
+			std::cerr << std::endl;
 		}
 	}
 
-	std::cout << "--------------------" << std::endl;
+	std::cerr << "--------------------" << std::endl;
 }
