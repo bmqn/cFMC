@@ -509,7 +509,8 @@ std::optional<CasesTerm<Loc_t>> Parser::parseLocCases()
 			if (auto caseOpt = parseLocCase())
 			{
 				auto &[val, term] = caseOpt.value();
-				cases[val] = std::move(term);
+				cases[val] = std::make_unique<Term>();
+				*cases[val] = std::move(term);
 
 				if (m_Lexer->isPeekToken(Token::Comma))
 				{
@@ -537,13 +538,13 @@ std::optional<CasesTerm<Loc_t>> Parser::parseLocCases()
 
 				if (auto bodyOpt = parseTerm())
 				{
-					return CasesTerm(
+					return CasesTerm<Loc_t>(
 						std::move(cases), std::move(bodyOpt.value())
 					);
 				}
 			}
 
-			return CasesTerm(
+			return CasesTerm<Loc_t>(
 				std::move(cases)
 			);
 		}

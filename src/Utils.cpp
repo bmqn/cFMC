@@ -115,7 +115,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 		for (auto itCases = cases.begin(); itCases != cases.end(); ++itCases)
 		{
 			termSs << itCases->first;
-			termSs << " -> " << stringifyTerm(itCases->second);
+			termSs << " -> " << stringifyTerm(*itCases->second.get());
 
 			auto itCasesCopy = itCases;
 			if (!(++itCasesCopy == cases.end()))
@@ -124,6 +124,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 			}
 		}
 		termSs << ")";
+		termPtr = cases.getBody();
 		break;
 	}
 	}
@@ -212,12 +213,12 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 		}
 		case Term::LocCases:
 		{
-			const CasesTerm<Loc_t> &cases = term.asLocCases();
+			const CasesTerm<Loc_t> &cases = termPtr->asLocCases();
 			termSs << ". (";
 			for (auto itCases = cases.begin(); itCases != cases.end(); ++itCases)
 			{
 				termSs << itCases->first;
-				termSs  << " -> " << stringifyTerm(itCases->second);
+				termSs  << " -> " << stringifyTerm(*itCases->second.get());
 
 				auto itCasesCopy = itCases;
 				if (!(++itCasesCopy == cases.end()))
@@ -226,6 +227,7 @@ std::string stringifyTerm(const Term &term, bool omitNil)
 				}
 			}
 			termSs << ")";
+			termPtr = cases.getBody();
 			break;
 		}
 		}

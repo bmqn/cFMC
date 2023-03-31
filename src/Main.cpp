@@ -77,11 +77,10 @@ int main()
 
 	{
 		Parser parser;
-		Program program = parser.parseProgram(ex40); // <-- Change example here ! 
+		Program program = parser.parseProgram(ex41); // <-- Change example here ! 
 		program.load([](const Program::FuncDefs_t *funcs) {
 			Machine machine(funcs);
 			machine.execute();
-			// machine.printDebug(); // <-- Enable debug print to see stack & binds
 		});
 	}
 

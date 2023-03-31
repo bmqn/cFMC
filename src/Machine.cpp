@@ -606,7 +606,7 @@ void Machine::execute()
 					if (itCase != cases.end())
 					{
 						// Push case term and the global binding context to frame
-						m_Frame.push_back(std::make_pair(&itCase->second, std::make_pair(boundVars, boundLocVars)));
+						m_Frame.push_back(std::make_pair(itCase->second.get(), std::make_pair(boundVars, boundLocVars)));
 					}
 					else
 					{
@@ -614,7 +614,7 @@ void Machine::execute()
 						if (itCase != cases.end())
 						{
 							// Push case term and the global binding context to frame
-							m_Frame.push_back(std::make_pair(&itCase->second, std::make_pair(boundVars, boundLocVars)));
+							m_Frame.push_back(std::make_pair(itCase->second.get(), std::make_pair(boundVars, boundLocVars)));
 						}
 						else
 						{

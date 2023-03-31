@@ -119,11 +119,17 @@ template<typename Case_t>
 class CasesTerm
 {
 public:
-	using Cases_t = std::map<Case_t, Term>;
+	using Cases_t = std::map<Case_t, std::unique_ptr<Term>>;
 
 public:
+	CasesTerm(const CasesTerm &cases) = delete;
+	CasesTerm(CasesTerm &&cases) = default;
+
 	CasesTerm(Cases_t &&cases, Term &&body);
 	CasesTerm(Cases_t &&cases);
+
+	CasesTerm &operator=(const CasesTerm &term) = delete;
+	CasesTerm &operator=(CasesTerm &&term) = default;
 
 	const Term *getBody() const;
 
@@ -142,7 +148,7 @@ public:
 	enum Kind
 	{
 		/* FCL-FMC    */ Nil, Var, Abs, App, LocAbs, LocApp,
-		/* Extensions */ Val, LocCases,
+		/* Extensions */ Val, LocCases
 	};
 
 	Term();
