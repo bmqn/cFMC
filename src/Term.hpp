@@ -10,62 +10,88 @@
 
 class Term;
 
-struct NilTerm
+class NilTerm
 {
 };
 
-class VarContTerm
+class VarTerm
 {
 public:
-	VarContTerm(Var_t var);
-	VarContTerm(Var_t var, Term &&body);
-
-	bool is(Var_t var) const;
+	VarTerm(Var_t var);
+	VarTerm(Var_t var, Term &&body);
 
 	Var_t getVar() const;
 	const Term *getBody() const;
+
+	bool isVar(Var_t var) const;
 
 private:
 	Var_t m_Var;
 	std::unique_ptr<Term> m_Body;
 };
 
-struct AbsTerm
+class AbsTerm
 {
-	AbsTerm(Loc_t loc);
-	AbsTerm(Loc_t loc, Var_t var);
+public:
+	AbsTerm(Loc_t loc, std::optional<Var_t> var);
+	AbsTerm(Loc_t loc, std::optional<Var_t> var, Term &&body);
 
-	Loc_t loc;
-	std::optional<Var_t> var;
-	std::unique_ptr<Term> body;
+	Loc_t getLoc() const;
+	std::optional<Var_t> getVar() const;
+	const Term *getBody() const;
+
+private:
+	Loc_t m_Loc;
+	std::optional<Var_t> m_Var;
+	std::unique_ptr<Term> m_Body;
 };
 
-struct AppTerm
+class AppTerm
 {
-	AppTerm(Loc_t loc);
+public:
+	AppTerm(const Loc_t &loc, Term &&arg);
+	AppTerm(const Loc_t &loc, Term &&arg, Term &&body);
 
-	Loc_t loc;
-	std::unique_ptr<Term> arg;
-	std::unique_ptr<Term> body;
+	Loc_t getLoc() const;
+	const Term *getArg() const;
+	const Term *getBody() const;
+
+private:
+	Loc_t m_Loc;
+	std::unique_ptr<Term> m_Arg;
+	std::unique_ptr<Term> m_Body;
 };
 
-struct LocAbsTerm
+class LocAbsTerm
 {
-	LocAbsTerm(Loc_t loc);
-	LocAbsTerm(Loc_t loc, LocVar_t var);
+public:
+	LocAbsTerm(Loc_t loc, std::optional<LocVar_t> var);
+	LocAbsTerm(Loc_t loc, std::optional<LocVar_t> var, Term &&body);
 
-	Loc_t loc;
-	std::optional<LocVar_t> var;
-	std::unique_ptr<Term> body;
+	Loc_t getLoc() const;
+	std::optional<LocVar_t> getLocVar() const;
+	const Term *getBody() const;
+
+private:
+	Loc_t m_Loc;
+	std::optional<LocVar_t> m_LocVar;
+	std::unique_ptr<Term> m_Body;
 };
 
-struct LocAppTerm
+class LocAppTerm
 {
-	LocAppTerm(Loc_t loc, Loc_t arg);
+public:
+	LocAppTerm(Loc_t loc, LocVar_t arg);
+	LocAppTerm(Loc_t loc, LocVar_t arg, Term &&body);
 
-	Loc_t loc;
-	Loc_t arg;
-	std::unique_ptr<Term> body;
+	Loc_t getLoc() const;
+	LocVar_t getArg() const;
+	const Term *getBody() const;
+
+private:
+	Loc_t m_Loc;
+	LocVar_t m_Arg;
+	std::unique_ptr<Term> m_Body;
 };
 
 class ValTerm
@@ -89,28 +115,34 @@ private:
 	std::variant<Prim_t, Loc_t> m_Val;
 };
 
-struct CasesTerm
+template<typename Case_t>
+class CasesTerm
 {
-	CasesTerm();
+public:
+	using Cases_t = std::map<Case_t, Term>;
 
-	void addCase(std::string id, Term &&term);
+public:
+	CasesTerm(Cases_t &&cases, Term &&body);
+	CasesTerm(Cases_t &&cases);
 
-	std::map<std::string, std::unique_ptr<Term>> cases;
-	std::unique_ptr<Term> body;
+	const Term *getBody() const;
+
+	typename Cases_t::const_iterator find(const Case_t &c) const;
+	typename Cases_t::const_iterator begin() const;
+	typename Cases_t::const_iterator end() const;
+
+private:
+	Cases_t m_Cases;
+	std::unique_ptr<Term> m_Body;
 };
 
 class Term
 {
-	using Term_t = std::variant<
-		NilTerm, VarContTerm, AbsTerm, AppTerm, LocAbsTerm, LocAppTerm,
-		ValTerm, CasesTerm
-	>;
-
 public:
 	enum Kind
 	{
-		/* FCL-FMC    */ Nil, VarCont, Abs, App, LocAbs, LocApp,
-		/* Extensions */ Val, Cases
+		/* FCL-FMC    */ Nil, Var, Abs, App, LocAbs, LocApp,
+		/* Extensions */ Val, LocCases,
 	};
 
 	Term();
@@ -118,13 +150,14 @@ public:
 	Term(Term &&term) = default;
 
 	Term(NilTerm &&term);
-	Term(VarContTerm &&term);
+	Term(VarTerm &&term);
 	Term(AbsTerm &&term);
 	Term(AppTerm &&term);
 	Term(LocAbsTerm &&term);
 	Term(LocAppTerm &&term);
+
 	Term(ValTerm &&term);
-	Term(CasesTerm &&term);
+	Term(CasesTerm<Loc_t> &&term);
 
 	Term &operator=(const Term &term) = delete;
 	Term &operator=(Term &&term) = default;
@@ -132,15 +165,21 @@ public:
 	Kind kind() const;
 
 	const NilTerm &asNil() const;
-	const VarContTerm &asVarCont() const;
+	const VarTerm &asVar() const;
 	const AbsTerm &asAbs() const;
 	const AppTerm &asApp() const;
 	const LocAbsTerm &asLocAbs() const;
 	const LocAppTerm &asLocApp() const;
+	
 	const ValTerm &asVal() const;
-	const CasesTerm &asCases() const;
+	const CasesTerm<Loc_t> &asLocCases() const;
 
 private:
+	using Term_t = std::variant<
+		/* FCL-FMC    */ NilTerm, VarTerm, AbsTerm, AppTerm, LocAbsTerm, LocAppTerm,
+		/* Extensions */ ValTerm, CasesTerm<Loc_t>
+	>;
+
 	Kind m_Kind;
 	Term_t m_Term;
 };

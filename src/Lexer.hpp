@@ -6,11 +6,10 @@
 #include <optional>
 #include <utility>
 #include <memory>
+#include <vector>
 
 enum class Token
 {
-	Nothing, // Represents nothing
-
 	Lb, Rb, // ( )
 	Lab, Rab, // < >
 	Lsb, Rsb, // [ ]
@@ -33,7 +32,7 @@ enum class Token
 class Lexer
 {
 public:
-	explicit Lexer(const std::string &buffer);
+	explicit Lexer(const std::string &source);
 
 	Lexer(const Lexer &) = delete;
 	Lexer &operator=(const Lexer &) = delete;
@@ -41,30 +40,26 @@ public:
 	Lexer(Lexer &&) = delete;
 	Lexer &operator=(Lexer &&) = delete;
 
-	const std::string &getSource() const;
-
 	const std::string &getBuffer() const;
 
-	Token getToken() const;
-	const std::string &getTokenBuffer() const;
-
-	Token peekToken() const;
-	const std::string &peekTokenBuffer() const;
-
-	void advance();
+	void next();
+	std::optional<std::pair<Token, std::string>> getPeek(size_t n = 0) const;
+	std::optional<Token> getPeekToken(size_t n = 0) const;
+	std::optional<std::string> getPeekBuffer(size_t n = 0) const;
+	bool isPeekToken(Token token, size_t n = 0) const;
 
 private:
-	std::optional<std::pair<Token, std::string>> nextToken();
+	std::optional<std::pair<Token, std::string>> advance();
 
 private:
-	std::string m_Source;
-	std::unique_ptr<std::istream> m_Stream;
+	static const size_t s_Lookahead = 3;
 
+	size_t m_CurrCharIdx;
 	std::string m_Buffer;
 
-	Token m_PrevToken;
-	std::string m_PrevTokenBuffer;
+	size_t m_CurrTokenIdx;
+	std::vector<Token> m_Tokens;
+	std::vector<std::string> m_Buffers;
 
-	Token m_Token;
-	std::string m_TokenBuffer;
+	std::unique_ptr<std::istream> m_Stream;
 };

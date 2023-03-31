@@ -3,47 +3,95 @@
 #include <iostream>
 #include <sstream>
 
-static void lexError(std::string message, const Lexer &lexer)
+Lexer::Lexer(const std::string &source)
+	: m_Stream(nullptr)
 {
-	const std::string &buf = lexer.getBuffer();
-	const std::string &tokenbuf = lexer.getTokenBuffer();
-	int tokenLen = tokenbuf.size();
+	m_Stream = std::make_unique<std::istringstream>(source);
 
-	std::cerr << "[Lex Error]" << std::endl;
+	m_CurrCharIdx = 0;
+	m_CurrTokenIdx = 0;
 
-	std::stringstream ss(buf);
-	std::string line;
-
-	while (std::getline(ss, line, '\n'))
+	for (auto i = 0; i < s_Lookahead; ++i)
 	{
-		std::cerr << "|  " << line << std::endl;
+		if ((!m_Tokens.empty() && m_Tokens.back() != Token::Eof) ||
+			m_Tokens.empty())
+		{
+			if (auto tokenOpt = advance())
+			{
+				auto [token, buffer] = tokenOpt.value();
+				
+				m_Tokens.push_back(token);
+				m_Buffers.push_back(buffer);
+			}
+		}
+	}
+}
+
+void Lexer::next()
+{
+	if ((!m_Tokens.empty() && m_Tokens.back() != Token::Eof) ||
+		m_Tokens.empty())
+	{
+		if (auto tokenOpt = advance())
+		{
+			auto [token, buffer] = tokenOpt.value();
+
+			m_Tokens.push_back(token);
+			m_Buffers.push_back(buffer);
+		}
+	}
+	
+	if (m_CurrTokenIdx < m_Tokens.size())
+	{
+		m_CurrTokenIdx++;
+	}
+}
+
+std::optional<std::pair<Token, std::string>> Lexer::getPeek(size_t n) const
+{
+	if (n < s_Lookahead)
+	{
+		auto token = m_Tokens[m_CurrTokenIdx + n];
+		auto buffer = m_Buffers[m_CurrTokenIdx + n];
+
+		return std::make_pair(token, buffer);
 	}
 
-	std::string err;
-	err += std::string(line.size() - tokenLen, ' ');
-	err += std::string(tokenLen, '^');
-	err += " ";
-	err += message;
-
-	std::cerr << "|  " << err << std::endl;
-
-	std::exit(1);
+	return std::nullopt;
 }
 
-Lexer::Lexer(const std::string &buffer)
-	: m_Stream(nullptr)
-	, m_PrevToken(Token::Nothing)
-	, m_Token(Token::Nothing)
+std::optional<Token> Lexer::getPeekToken(size_t n) const
 {
-	m_Source = buffer;
-	m_Stream = std::make_unique<std::istringstream>(m_Source);
+	if (n < s_Lookahead)
+	{
+		auto token = m_Tokens[m_CurrTokenIdx + n];
 
-	advance();
+		return token;
+	}
+
+	return std::nullopt;
 }
 
-const std::string &Lexer::getSource() const
+std::optional<std::string> Lexer::getPeekBuffer(size_t n) const
 {
-	return m_Source;
+	if (n < s_Lookahead)
+	{
+		auto buffer = m_Buffers[m_CurrTokenIdx + n];
+
+		return buffer;
+	}
+
+	return std::nullopt;
+}
+
+bool Lexer::isPeekToken(Token token, size_t n) const
+{
+	if (n < s_Lookahead)
+	{
+		return token == m_Tokens[m_CurrTokenIdx + n];;
+	}
+
+	return false;
 }
 
 const std::string &Lexer::getBuffer() const
@@ -51,71 +99,31 @@ const std::string &Lexer::getBuffer() const
 	return m_Buffer;
 }
 
-Token Lexer::getToken() const
-{
-	return m_PrevToken;
-}
-
-const std::string &Lexer::getTokenBuffer() const
-{
-	return m_PrevTokenBuffer;
-}
-
-Token Lexer::peekToken() const
-{
-	return m_Token;
-}
-
-const std::string &Lexer::peekTokenBuffer() const
-{
-	return m_TokenBuffer;
-}
-
-void Lexer::advance()
-{
-	if (m_Token != Token::Eof)
-	{
-		if (auto nextOpt = nextToken())
-		{
-			m_PrevToken = m_Token;
-			m_PrevTokenBuffer = m_TokenBuffer;
-
-			auto [token, buffer] = nextOpt.value();
-
-			m_Token = token;
-			m_TokenBuffer = buffer;
-		}
-		else
-		{
-			lexError("Unrecognised token !", *this);
-		}
-	}
-	else if (m_Token == Token::Eof)
-	{
-		m_PrevToken = m_Token;
-		m_PrevTokenBuffer = m_TokenBuffer;
-	}
-}
-
-std::optional<std::pair<Token, std::string>> Lexer::nextToken()
+std::optional<std::pair<Token, std::string>> Lexer::advance()
 {
 	std::string buffer;
 
 	char c = m_Stream->get();
+	
 	if (c == std::istream::traits_type::eof())
 	{
 		return std::make_pair(Token::Eof, buffer);
 	}
+
+	m_CurrCharIdx++;
 	m_Buffer += c;
 	
 	// Eat whitespace (includes nl & cr)
 	while (std::isspace(c))
 	{
 		c = m_Stream->get();
+		
 		if (c == std::istream::traits_type::eof())
 		{
 			return std::make_pair(Token::Eof, buffer);
 		}
+
+		m_CurrCharIdx++;
 		m_Buffer += c;
 	}
 
@@ -176,6 +184,7 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 	else if (c == '-')
 	{
 		c = m_Stream->get();
+		m_CurrCharIdx++;
 		m_Buffer += c;
 
 		if (c == '>')
@@ -184,20 +193,26 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 		}
 
 		m_Stream->putback(c);
+		m_CurrCharIdx--;
 		m_Buffer.pop_back();
 	}
 	else if (std::isalpha(c))
 	{
 		c = m_Stream->get();
+		m_CurrCharIdx++;
 		m_Buffer += c;
 
 		while (std::isalnum(c) || c == '_')
 		{
 			buffer += c;
+
 			c = m_Stream->get();
+			m_CurrCharIdx++;
 			m_Buffer += c;
 		}
+
 		m_Stream->putback(c);
+		m_CurrCharIdx--;
 		m_Buffer.pop_back();
 
 		return std::make_pair(Token::Id, buffer);
@@ -205,15 +220,17 @@ std::optional<std::pair<Token, std::string>> Lexer::nextToken()
 	else if (std::isdigit(c))
 	{
 		c = m_Stream->get();
+		m_CurrCharIdx++;
 		m_Buffer += c;
 
 		while (std::isdigit(c))
 		{
 			buffer += c;
 			c = m_Stream->get();
-			m_Buffer += c;
+			m_CurrCharIdx++;
 		}
 		m_Stream->putback(c);
+		m_CurrCharIdx--;
 		m_Buffer.pop_back();
 
 		return std::make_pair(Token::Primitive, buffer);

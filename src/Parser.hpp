@@ -17,21 +17,24 @@ public:
 	Parser();
 
 	Program parseProgram(const std::string &programSrc);
-	Term parseTerm(const std::string &termSrc);
+	std::optional<Term> parseTerm(const std::string &termSrc);
 
 private:
-	FuncDefs_t parseFuncDefs();
+	Program::FuncDefs_t parseFuncDefs();
 
 	std::optional<Term> parseTerm();
 
-	std::optional<VarContTerm> parseVarCont();
-	std::optional<std::variant<AbsTerm, LocAbsTerm>> parseAbstraction();
-	std::optional<std::variant<AppTerm, LocAppTerm>> parseApplication();
+	std::optional<VarTerm> parseVar();
+	std::optional<AbsTerm> parseAbs();
+	std::optional<AppTerm> parseApp();
+	std::optional<LocAbsTerm> parseLocAbs();
+	std::optional<LocAppTerm> parseLocApp();
 
 	std::optional<ValTerm> parseVal();
-
-	std::optional<std::pair<std::string, Term>> parseCase();
-	std::optional<CasesTerm> parseCases();
+	// std::optional<std::pair<Prim_t, Term>> parsePrimCase();
+	std::optional<std::pair<Loc_t, Term>> parseLocCase();
+	// std::optional<CasesTerm<Prim_t>> parsePrimCases();
+	std::optional<CasesTerm<Loc_t>> parseLocCases();
 
 private:
 	std::unique_ptr<Lexer> m_Lexer;

@@ -7,10 +7,11 @@
 
 #include "Term.hpp"
 
-using FuncDefs_t = std::unordered_map<std::string, Term>;
-
 class Program
 {
+public:
+	using FuncDefs_t = std::unordered_map<std::string, Term>;
+
 public:
 	Program() = delete;
 	Program(const Program &program) = delete;

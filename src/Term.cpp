@@ -10,7 +10,7 @@ static auto newTerm(NilTerm &&term)
 	return std::make_unique<Term>(Term(std::move(term)));
 }
 
-static auto newTerm(VarContTerm &&term)
+static auto newTerm(VarTerm &&term)
 {
 	return std::make_unique<Term>(Term(std::move(term)));
 }
@@ -25,101 +25,217 @@ static auto newTerm(AppTerm &&term)
 	return std::make_unique<Term>(Term(std::move(term)));
 }
 
-VarContTerm::VarContTerm(Var_t var)
+VarTerm::VarTerm(Var_t var)
 	: m_Var(var)
 	, m_Body(newNilTerm())
 {}
 
-VarContTerm::VarContTerm(Var_t var, Term &&body)
+VarTerm::VarTerm(Var_t var, Term &&body)
 	: m_Var(var)
 	, m_Body(newNilTerm())
 {
 	*m_Body = std::move(body);
 }
 
-bool VarContTerm::is(Var_t var) const
-{
-	return m_Var == var;
-}
-
-Var_t VarContTerm::getVar() const
+Var_t VarTerm::getVar() const
 {
 	return m_Var;
 }
 
-const Term *VarContTerm::getBody() const
+const Term *VarTerm::getBody() const
 {
 	return m_Body.get();
 }
 
-AbsTerm::AbsTerm(Loc_t loc)
-	: loc(loc)
-	, var(std::nullopt)
-	, body(newNilTerm())
-{}
+bool VarTerm::isVar(Var_t var) const
+{
+	return m_Var == var;
+}
 
-AbsTerm::AbsTerm(Loc_t loc, Var_t var)
-	: loc(loc)
-	, var(var)
-	, body(newNilTerm())
-{}
+AbsTerm::AbsTerm(Loc_t loc, std::optional<Var_t> var)
+	: m_Loc(loc)
+	, m_Var(var)
+	, m_Body(newNilTerm())
+{
+}
 
-AppTerm::AppTerm(Var_t loc)
-	: loc(loc)
-	, arg(newNilTerm())
-	, body(newNilTerm())
-{}
+AbsTerm::AbsTerm(Loc_t loc, std::optional<Var_t> var, Term &&body)
+	: m_Loc(loc)
+	, m_Var(var)
+	, m_Body(newNilTerm())
+{
+	*m_Body = std::move(body);
+}
+
+Loc_t AbsTerm::getLoc() const
+{
+	return m_Loc;
+}
+
+std::optional<Var_t> AbsTerm::getVar() const
+{
+	return m_Var;
+}
+
+const Term *AbsTerm::getBody() const
+{
+	return m_Body.get();
+}
+
+AppTerm::AppTerm(const Loc_t &loc, Term &&arg)
+	: m_Loc(loc)
+	, m_Arg(newNilTerm())
+	, m_Body(newNilTerm())
+{
+	*m_Arg = std::move(arg);
+}
+
+AppTerm::AppTerm(const Loc_t &loc, Term &&arg, Term &&body)
+	: m_Loc(loc)
+	, m_Arg(newNilTerm())
+	, m_Body(newNilTerm())
+{
+	*m_Arg = std::move(arg);
+	*m_Body = std::move(body);
+}
+
+Loc_t AppTerm::getLoc() const
+{
+	return m_Loc;
+}
+
+const Term *AppTerm::getArg() const
+{
+	return m_Arg.get();
+}
+
+const Term *AppTerm::getBody() const
+{
+	return m_Body.get();
+}
 
 ValTerm::ValTerm(Prim_t prim)
 	: m_Kind(Prim)
 	, m_Val(prim)
-{
-}
+{}
 
 ValTerm::ValTerm(Loc_t loc)
 	: m_Kind(Loc)
 	, m_Val(loc)
+{}
+
+LocAbsTerm::LocAbsTerm(Loc_t loc, std::optional<LocVar_t> var)
+	: m_Loc(loc)
+	, m_LocVar(var)
+	, m_Body(newNilTerm())
+{}
+
+LocAbsTerm::LocAbsTerm(Loc_t loc, std::optional<LocVar_t> var, Term &&body)
+	: m_Loc(loc)
+	, m_LocVar(var)
+	, m_Body(newNilTerm())
 {
+	*m_Body = std::move(body);
 }
 
-LocAbsTerm::LocAbsTerm(Loc_t loc, LocVar_t var)
-	: loc(loc)
-	, var(var)
-	, body(newNilTerm())
+Loc_t LocAbsTerm::getLoc() const
+{
+	return m_Loc;
+}
+
+std::optional<LocVar_t> LocAbsTerm::getLocVar() const
+{
+	return m_LocVar;
+}
+
+const Term *LocAbsTerm::getBody() const
+{
+	return m_Body.get();
+}
+
+LocAppTerm::LocAppTerm(Loc_t loc, LocVar_t arg)
+	: m_Loc(loc)
+	, m_Arg(arg)
+	, m_Body(newNilTerm())
 {}
 
-LocAppTerm::LocAppTerm(Loc_t loc, Loc_t arg)
-	: loc(loc)
-	, arg(arg)
-	, body(newNilTerm())
-{}
+LocAppTerm::LocAppTerm(Loc_t loc, LocVar_t arg, Term &&body)
+	: m_Loc(loc)
+	, m_Arg(arg)
+	, m_Body(newNilTerm())
+{
+	*m_Body = std::move(body); 
+}
+
+Loc_t LocAppTerm::getLoc() const
+{
+	return m_Loc;
+}
+
+LocVar_t LocAppTerm::getArg() const
+{
+	return m_Arg;
+}
+
+const Term *LocAppTerm::getBody() const
+{
+	return m_Body.get();
+}
 
 ValTerm::ValKind ValTerm::kind() const
 {
 	return m_Kind;
 }
 
-Prim_t ValTerm::getPrim()  const
+Prim_t ValTerm::getPrim() const
 {
 	return std::get<Prim_t>(m_Val);
 }
 
-Loc_t ValTerm::getLoc()  const
+Loc_t ValTerm::getLoc() const
 {
 	return std::get<Loc_t>(m_Val);
 }
 
-CasesTerm::CasesTerm()
-	: body(newNilTerm())
+template<typename Case_t>
+CasesTerm<Case_t>::CasesTerm(CasesTerm<Case_t>::Cases_t &&cases, Term &&body)
+	: m_Cases(std::move(cases))
+	, m_Body(newNilTerm())
+{
+	*m_Body = std::move(body);
+}
+
+template<typename Case_t>
+CasesTerm<Case_t>::CasesTerm(CasesTerm<Case_t>::Cases_t &&cases)
+	: m_Cases(std::move(cases))
+	, m_Body(newNilTerm())
 {}
 
-void CasesTerm::addCase(std::string val, Term &&term)
+template<typename Case_t>
+const Term *CasesTerm<Case_t>::getBody() const
 {
-	auto caseTerm = newNilTerm();
-	*caseTerm = std::move(term);
-
-	cases.emplace(val, std::move(caseTerm));
+	return m_Body.get();
 }
+
+template<typename Case_t>
+typename CasesTerm<Case_t>::Cases_t::const_iterator CasesTerm<Case_t>::find(const Case_t &c) const
+{
+	return m_Cases.find(c);
+}
+
+template<typename Case_t>
+typename CasesTerm<Case_t>::Cases_t::const_iterator CasesTerm<Case_t>::begin() const
+{
+	return m_Cases.begin();
+}
+
+template<typename Case_t>
+typename CasesTerm<Case_t>::Cases_t::const_iterator CasesTerm<Case_t>::end() const
+{
+	return m_Cases.end();
+}
+
+template class CasesTerm<Loc_t>;
 
 Term::Term()
 	: m_Kind(Nil)
@@ -131,8 +247,8 @@ Term::Term(NilTerm &&term)
 	, m_Term(std::move(term))
 {}
 
-Term::Term(VarContTerm &&term)
-	: m_Kind(VarCont)
+Term::Term(VarTerm &&term)
+	: m_Kind(Var)
 	, m_Term(std::move(term))
 {}
 
@@ -161,8 +277,8 @@ Term::Term(ValTerm &&term)
 	, m_Term(std::move(term))
 {}
 
-Term::Term(CasesTerm &&term)
-	: m_Kind(Cases)
+Term::Term(CasesTerm<Loc_t> &&term)
+	: m_Kind(LocCases)
 	, m_Term(std::move(term))
 {}
 
@@ -176,9 +292,9 @@ const NilTerm &Term::asNil() const
 	return std::get<NilTerm>(m_Term);
 }
 
-const VarContTerm &Term::asVarCont() const
+const VarTerm &Term::asVar() const
 {
-	return std::get<VarContTerm>(m_Term);
+	return std::get<VarTerm>(m_Term);
 }
 
 const AbsTerm &Term::asAbs() const
@@ -206,7 +322,7 @@ const ValTerm &Term::asVal() const
 	return std::get<ValTerm>(m_Term);
 }
 
-const CasesTerm &Term::asCases() const
+const CasesTerm<Loc_t> &Term::asLocCases() const
 {
-	return std::get<CasesTerm>(m_Term);
+	return std::get<CasesTerm<Loc_t>>(m_Term);
 }

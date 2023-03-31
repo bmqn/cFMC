@@ -8,6 +8,7 @@
 #include "Parser.hpp"
 #include "Program.hpp"
 #include "Machine.hpp"
+#include "Utils.hpp"
 
 static std::string readFile(const std::string &path)
 {
@@ -46,7 +47,7 @@ int main()
 		"true  = (<a> . <b> . a)"
 		"false = (<a> . <b> . b)"
 		"if    = (<b> . <a> . <p> . [b] . [a] . p)"
-		"f     = (<p> . [p] . [in<p> . [p] . f] . [[wank]out . *] . if)"
+		"f     = (<p> . [p] . [in<p> . [p] . f] . [[0]out . *] . if)"
 		"main  = ([true] . f)";
 
 	// -- First-class locations
@@ -77,7 +78,7 @@ int main()
 	{
 		Parser parser;
 		Program program = parser.parseProgram(ex40); // <-- Change example here ! 
-		program.load([](const FuncDefs_t *funcs) {
+		program.load([](const Program::FuncDefs_t *funcs) {
 			Machine machine(funcs);
 			machine.execute();
 			// machine.printDebug(); // <-- Enable debug print to see stack & binds
