@@ -11,40 +11,36 @@ static void parseError(std::string message, const Lexer &lexer)
 {
 	if (auto tokenBufferOpt = lexer.getPeekBuffer())
 	{
-		if (auto nextTokenBufferOpt = lexer.getPeekBuffer(1))
+		std::string tokenBuffer = tokenBufferOpt.value();
+		int tokenBufferLen = tokenBuffer.size();
+
+		std::cerr << "[Parse Error]" << std::endl;
+
+		const std::string buffer = lexer.getBuffer();
+		size_t tokenBufferPos = 0;
+
+		std::stringstream ss(buffer);
+		std::string line;
+		while (std::getline(ss, line, '\n'))
 		{
-			const std::string buffer = lexer.getBuffer();
-			
-			std::string tokenBuffer = tokenBufferOpt.value();
-			int tokenBufferLen = tokenBuffer.size();
-
-			std::string nextTokenBuffer = nextTokenBufferOpt.value();
-			int nextTokenBufferLen = nextTokenBuffer.size();
-
-			std::cerr << "[Parse Error]" << std::endl;
-
-			std::stringstream ss(buffer);
-			std::string line;
-			while (std::getline(ss, line, '\n'))
-			{
-				std::cerr << "|  " << line << std::endl;
-			}
-
-			std::string err1;
-			err1 += std::string(line.size() - tokenBufferLen - 1, ' ');
-			err1 += std::string(tokenBufferLen, '^');
-			err1 += " ";
-			err1 += message;
-
-			std::string err2;
-			err2 += std::string(line.size() - tokenBufferLen - 1, ' ');
-			err2 += "| Got '";
-			err2 += tokenBuffer;
-			err2 += "'";
-
-			std::cerr << "|  " << err1 << std::endl;
-			std::cerr << "|  " << err2 << std::endl;
+			std::cerr << "|  " << line << std::endl;
+			tokenBufferPos = line.find_last_of(tokenBuffer);
 		}
+
+		std::string err1;
+		err1 += std::string(tokenBufferPos, ' ');
+		err1 += std::string(tokenBufferLen, '^');
+		err1 += " ";
+		err1 += message;
+
+		std::string err2;
+		err2 += std::string(tokenBufferPos, ' ');
+		err2 += "| Got '";
+		err2 += tokenBuffer;
+		err2 += "'";
+
+		std::cerr << "|  " << err1 << std::endl;
+		std::cerr << "|  " << err2 << std::endl;
 	}
 
 	std::exit(1);
@@ -241,18 +237,25 @@ std::optional<AbsTerm> Parser::parseAbs()
 			parseError("Expected binding variable of abstraction", *m_Lexer);
 		}
 
-		if (m_Lexer->isPeekToken(Token::Rab) &&
-			m_Lexer->isPeekToken(Token::Dot, 1))
+		if (m_Lexer->isPeekToken(Token::Rab))
 		{
 			m_Lexer->next();
-			m_Lexer->next();
-			
-			if (auto bodyOpt = parseTerm())
+
+			if (m_Lexer->isPeekToken(Token::Dot))
 			{
-				return AbsTerm(
-					locOpt.value_or(k_DefaultLoc), varOpt,
-					std::move(bodyOpt.value())
-				);
+				m_Lexer->next();
+				
+				if (auto bodyOpt = parseTerm())
+				{
+					return AbsTerm(
+						locOpt.value_or(k_DefaultLoc), varOpt,
+						std::move(bodyOpt.value())
+					);
+				}
+				else
+				{
+					parseError("Expected body of abstraction", *m_Lexer);
+				}
 			}
 
 			return AbsTerm(
@@ -300,6 +303,10 @@ std::optional<AppTerm> Parser::parseApp()
 							std::move(argOpt.value()),
 							std::move(bodyOpt.value())
 						);
+					}
+					else
+					{
+						parseError("Expected body of application", *m_Lexer);
 					}
 				}
 
@@ -356,18 +363,25 @@ std::optional<LocAbsTerm> Parser::parseLocAbs()
 			parseError("Expected binding variable of abstraction", *m_Lexer);
 		}
 
-		if (m_Lexer->isPeekToken(Token::Rab) &&
-			m_Lexer->isPeekToken(Token::Dot, 1))
+		if (m_Lexer->isPeekToken(Token::Rab))
 		{
 			m_Lexer->next();
-			m_Lexer->next();
 			
-			if (auto bodyOpt = parseTerm())
+			if (m_Lexer->isPeekToken(Token::Dot))
 			{
-				return LocAbsTerm(
-					locOpt.value_or(k_DefaultLoc), varOpt,
-					std::move(bodyOpt.value())
-				);
+				m_Lexer->next();
+
+				if (auto bodyOpt = parseTerm())
+				{
+					return LocAbsTerm(
+						locOpt.value_or(k_DefaultLoc), varOpt,
+						std::move(bodyOpt.value())
+					);
+				}
+				else
+				{
+					parseError("Expected body of abstraction", *m_Lexer);
+				}
 			}
 
 			return LocAbsTerm(
@@ -420,6 +434,10 @@ std::optional<LocAppTerm> Parser::parseLocApp()
 								argOpt.value(),
 								std::move(bodyOpt.value())
 							);
+						}
+						else
+						{
+							parseError("Expected body of application", *m_Lexer);
 						}
 					}
 
@@ -479,18 +497,18 @@ std::optional<std::pair<Loc_t, Term>> Parser::parseLocCase()
 				}
 				else
 				{
-					parseError("Expected term for case mapping", *m_Lexer);
+					parseError("Expected mapping term for case", *m_Lexer);
 				}
 			}
 			else
 			{
-				parseError("Expected '->' for case", *m_Lexer);
+				parseError("Expected mapping '->' for case", *m_Lexer);
 			}
 		}
 	}
 	else
 	{
-		parseError("Expected pattern for case", *m_Lexer);
+		parseError("Expected pattern to match for case", *m_Lexer);
 	}
 
 	return std::nullopt;
@@ -524,7 +542,7 @@ std::optional<CasesTerm<Loc_t>> Parser::parseLocCases()
 			}
 			else
 			{
-				parseError("Expected case mapping for cases", *m_Lexer);
+				parseError("Expected a case mapping for cases", *m_Lexer);
 			}
 		}
 

@@ -93,6 +93,10 @@ void Machine::execute()
 		{
 		case Term::Nil:
 		{
+			if (!m_CallStack.empty())
+			{
+				m_CallStack.pop_back();
+			}
 			break;
 		}
 		case Term::Var:
@@ -112,6 +116,7 @@ void Machine::execute()
 				{
 					// Push bound term and its binding context to frame
 					m_Frame.push_back(std::make_pair(itBound->second, std::make_pair(ItEnv->second, boundLocVars)));
+					m_CallStack.push_back({"Bining '" + var.getVar() + "'", itBound->second});
 				}
 				else
 				{
@@ -600,13 +605,12 @@ void Machine::execute()
 				}
 				else if (val.kind() == ValTerm::Loc)
 				{
-					Loc_t loc = val.getLoc();
-
-					auto itCase = cases.find(loc);
+					auto itCase = cases.find(val.getLoc());
 					if (itCase != cases.end())
 					{
 						// Push case term and the global binding context to frame
 						m_Frame.push_back(std::make_pair(itCase->second.get(), std::make_pair(boundVars, boundLocVars)));
+						m_CallStack.push_back({"Case '" + val.getLoc() + "'", itCase->second.get()});
 					}
 					else
 					{
@@ -615,6 +619,7 @@ void Machine::execute()
 						{
 							// Push case term and the global binding context to frame
 							m_Frame.push_back(std::make_pair(itCase->second.get(), std::make_pair(boundVars, boundLocVars)));
+							m_CallStack.push_back({"Case 'otherwise'", itCase->second.get()});
 						}
 						else
 						{
@@ -696,7 +701,7 @@ std::string Machine::getCallstackDebug() const
 	for (auto itFrame = m_CallStack.rbegin(); itFrame != m_CallStack.rend(); ++itFrame)
 	{
 		ss << std::string(m_CallStack.size() - (m_CallStack.rend() - itFrame), ' ');
-		ss << " => " << itFrame->first << " = (" << stringifyTerm(*itFrame->second) << ")" << std::endl;
+		ss << "> " << itFrame->first << " => " << stringifyTerm(*itFrame->second) << std::endl;
 	}
 
 	ss << "---------------" << std::endl;
