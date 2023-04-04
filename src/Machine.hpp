@@ -7,40 +7,35 @@
 #include "Term.hpp"
 #include "Parser.hpp"
 
-using Stacks_t = std::unordered_map<Loc_t, std::vector<const Term *>>;
-
-using BoundVars_t = std::unordered_map<Var_t, const Term *>;
+using BoundVars_t = std::unordered_map<Var_t, TermHandle_t>;
 using BoundLocVars_t = std::unordered_map<LocVar_t, Loc_t>;
 
-template<typename BoundT>
-using BindCtx_t = std::unordered_map<const Term *, BoundT>;
+using VarBindCtx_t = std::unordered_map<TermHandle_t, BoundVars_t>;
+using LocBindCtx_t = std::unordered_map<TermHandle_t, BoundLocVars_t>;
 
-using Frame_t = std::vector<std::tuple<const Term *, std::pair<BoundVars_t, BoundLocVars_t>>>;
+using Memory_t = std::unordered_map<Loc_t, std::vector<TermHandle_t>>;
+using Frame_t = std::vector<std::tuple<TermHandle_t, std::pair<BoundVars_t, BoundLocVars_t>>>;
+using Callstack_t = std::vector<std::pair<std::string, TermHandle_t>>;
 
 class Machine
 {
 public:
-	Machine() = delete;
-	Machine(const Machine &machine) = delete;
-	Machine(Machine &&machine) = delete;
+	void execute(const Program::FuncDefs_t &funcs);
 
-	Machine(const Program::FuncDefs_t *funcs);
-
-	void execute();
-	
 	std::string getStackDebug() const;
 	std::string getCallstackDebug() const;
+	std::string getBindDebug() const;
 
 private:
-	void execute(const Term &term);
+	TermHandle_t freshTerm(Term &&term);
 
 private:
-	const Program::FuncDefs_t *m_Funcs;
-	
-	Stacks_t m_Stacks;
-	BindCtx_t<BoundVars_t> m_VarBindCtx;
-	BindCtx_t<BoundLocVars_t> m_LocVarBindCtx;
+	Memory_t m_Stacks;
 	Frame_t m_Frame;
+	Callstack_t m_CallStack;
 
-	std::vector<std::pair<std::string, const Term *>> m_CallStack;
+	VarBindCtx_t m_VarBindCtx;
+	LocBindCtx_t m_LocVarBindCtx;
+
+	std::vector<TermOwner_t> m_FreshTerms;
 };

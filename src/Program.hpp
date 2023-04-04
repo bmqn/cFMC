@@ -10,7 +10,7 @@
 class Program
 {
 public:
-	using FuncDefs_t = std::unordered_map<std::string, Term>;
+	using FuncDefs_t = std::unordered_map<std::string, TermOwner_t>;
 
 public:
 	Program() = delete;
@@ -19,8 +19,8 @@ public:
 
 	Program(FuncDefs_t &&funcs);
 
-	void load(std::function<void(const FuncDefs_t *)>) const;
+	void load(std::function<void(const FuncDefs_t &)> onLoad) const;
 
 private:
-	std::shared_ptr<FuncDefs_t> m_Funcs;
+	FuncDefs_t m_Funcs;
 };

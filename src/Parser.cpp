@@ -93,9 +93,7 @@ Program::FuncDefs_t Parser::parseFuncDefs()
 							if (m_Lexer->isPeekToken(Token::Rb))
 							{
 								m_Lexer->next();
-								funcs.emplace(
-									funcOpt.value(), std::move(termOpt.value())
-								);
+								funcs.emplace(funcOpt.value(), newTerm(std::move(termOpt.value())));
 							}
 							else
 							{
@@ -527,8 +525,7 @@ std::optional<CasesTerm<Loc_t>> Parser::parseLocCases()
 			if (auto caseOpt = parseLocCase())
 			{
 				auto &[val, term] = caseOpt.value();
-				cases[val] = std::make_unique<Term>();
-				*cases[val] = std::move(term);
+				cases[val] = newTerm(std::move(term));
 
 				if (m_Lexer->isPeekToken(Token::Comma))
 				{

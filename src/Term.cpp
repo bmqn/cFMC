@@ -1,71 +1,42 @@
 #include "Term.hpp"
 
-static auto newNilTerm()
+TermOwner_t newTerm(Term &&term)
 {
-	return std::make_unique<Term>(Term(NilTerm()));
-}
-
-static auto newTerm(NilTerm &&term)
-{
-	return std::make_unique<Term>(Term(std::move(term)));
-}
-
-static auto newTerm(VarTerm &&term)
-{
-	return std::make_unique<Term>(Term(std::move(term)));
-}
-
-static auto newTerm(AbsTerm &&term)
-{
-	return std::make_unique<Term>(Term(std::move(term)));
-}
-
-static auto newTerm(AppTerm &&term)
-{
-	return std::make_unique<Term>(Term(std::move(term)));
+	return std::make_shared<Term>(std::move(term));
 }
 
 VarTerm::VarTerm(Var_t var)
 	: m_Var(var)
-	, m_Body(newNilTerm())
+	, m_Body(newTerm(NilTerm()))
 {}
 
 VarTerm::VarTerm(Var_t var, Term &&body)
 	: m_Var(var)
-	, m_Body(newNilTerm())
-{
-	*m_Body = std::move(body);
-}
+	, m_Body(newTerm(std::move(body)))
+{}
 
 Var_t VarTerm::getVar() const
 {
 	return m_Var;
 }
 
-const Term *VarTerm::getBody() const
+TermHandle_t VarTerm::getBody() const
 {
-	return m_Body.get();
-}
-
-bool VarTerm::isVar(Var_t var) const
-{
-	return m_Var == var;
+	return m_Body;
 }
 
 AbsTerm::AbsTerm(Loc_t loc, std::optional<Var_t> var)
 	: m_Loc(loc)
 	, m_Var(var)
-	, m_Body(newNilTerm())
+	, m_Body(newTerm(NilTerm()))
 {
 }
 
 AbsTerm::AbsTerm(Loc_t loc, std::optional<Var_t> var, Term &&body)
 	: m_Loc(loc)
 	, m_Var(var)
-	, m_Body(newNilTerm())
-{
-	*m_Body = std::move(body);
-}
+	, m_Body(newTerm(std::move(body)))
+{}
 
 Loc_t AbsTerm::getLoc() const
 {
@@ -77,66 +48,57 @@ std::optional<Var_t> AbsTerm::getVar() const
 	return m_Var;
 }
 
-const Term *AbsTerm::getBody() const
+TermHandle_t AbsTerm::getBody() const
 {
-	return m_Body.get();
+	return m_Body;
 }
 
 AppTerm::AppTerm(const Loc_t &loc, Term &&arg)
 	: m_Loc(loc)
-	, m_Arg(newNilTerm())
-	, m_Body(newNilTerm())
-{
-	*m_Arg = std::move(arg);
-}
+	, m_Arg(newTerm(std::move(arg)))
+	, m_Body(newTerm(NilTerm()))
+{}
 
 AppTerm::AppTerm(const Loc_t &loc, Term &&arg, Term &&body)
 	: m_Loc(loc)
-	, m_Arg(newNilTerm())
-	, m_Body(newNilTerm())
-{
-	*m_Arg = std::move(arg);
-	*m_Body = std::move(body);
-}
+	, m_Arg(newTerm(std::move(arg)))
+	, m_Body(newTerm(std::move(body)))
+{}
 
 Loc_t AppTerm::getLoc() const
 {
 	return m_Loc;
 }
 
-const Term *AppTerm::getArg() const
+TermHandle_t AppTerm::getArg() const
 {
-	return m_Arg.get();
+	return m_Arg;
 }
 
-const Term *AppTerm::getBody() const
+TermHandle_t AppTerm::getBody() const
 {
-	return m_Body.get();
+	return m_Body;
 }
 
 ValTerm::ValTerm(Prim_t prim)
-	: m_Kind(Prim)
-	, m_Val(prim)
+	: m_Val(prim)
 {}
 
 ValTerm::ValTerm(Loc_t loc)
-	: m_Kind(Loc)
-	, m_Val(loc)
+	: m_Val(loc)
 {}
 
 LocAbsTerm::LocAbsTerm(Loc_t loc, std::optional<LocVar_t> var)
 	: m_Loc(loc)
 	, m_LocVar(var)
-	, m_Body(newNilTerm())
+	, m_Body(newTerm(NilTerm()))
 {}
 
 LocAbsTerm::LocAbsTerm(Loc_t loc, std::optional<LocVar_t> var, Term &&body)
 	: m_Loc(loc)
 	, m_LocVar(var)
-	, m_Body(newNilTerm())
-{
-	*m_Body = std::move(body);
-}
+	, m_Body(newTerm(std::move(body)))
+{}
 
 Loc_t LocAbsTerm::getLoc() const
 {
@@ -148,24 +110,22 @@ std::optional<LocVar_t> LocAbsTerm::getLocVar() const
 	return m_LocVar;
 }
 
-const Term *LocAbsTerm::getBody() const
+TermHandle_t LocAbsTerm::getBody() const
 {
-	return m_Body.get();
+	return m_Body;
 }
 
 LocAppTerm::LocAppTerm(Loc_t loc, LocVar_t arg)
 	: m_Loc(loc)
 	, m_Arg(arg)
-	, m_Body(newNilTerm())
+	, m_Body(newTerm(NilTerm()))
 {}
 
 LocAppTerm::LocAppTerm(Loc_t loc, LocVar_t arg, Term &&body)
 	: m_Loc(loc)
 	, m_Arg(arg)
-	, m_Body(newNilTerm())
-{
-	*m_Body = std::move(body); 
-}
+	, m_Body(newTerm(std::move(body)))
+{}
 
 Loc_t LocAppTerm::getLoc() const
 {
@@ -177,22 +137,27 @@ LocVar_t LocAppTerm::getArg() const
 	return m_Arg;
 }
 
-const Term *LocAppTerm::getBody() const
+TermHandle_t LocAppTerm::getBody() const
 {
-	return m_Body.get();
+	return m_Body;
 }
 
-ValTerm::ValKind ValTerm::kind() const
+bool ValTerm::isPrim() const
 {
-	return m_Kind;
+	return std::holds_alternative<Prim_t>(m_Val);
 }
 
-Prim_t ValTerm::getPrim() const
+bool ValTerm::isLoc() const
+{
+	return std::holds_alternative<Loc_t>(m_Val);
+}
+
+Prim_t ValTerm::asPrim() const
 {
 	return std::get<Prim_t>(m_Val);
 }
 
-Loc_t ValTerm::getLoc() const
+Loc_t ValTerm::asLoc() const
 {
 	return std::get<Loc_t>(m_Val);
 }
@@ -200,21 +165,19 @@ Loc_t ValTerm::getLoc() const
 template<typename Case_t>
 CasesTerm<Case_t>::CasesTerm(CasesTerm<Case_t>::Cases_t &&cases, Term &&body)
 	: m_Cases(std::move(cases))
-	, m_Body(newNilTerm())
-{
-	*m_Body = std::move(body);
-}
+	, m_Body(newTerm(std::move(body)))
+{}
 
 template<typename Case_t>
 CasesTerm<Case_t>::CasesTerm(CasesTerm<Case_t>::Cases_t &&cases)
 	: m_Cases(std::move(cases))
-	, m_Body(newNilTerm())
+	, m_Body(newTerm(NilTerm()))
 {}
 
 template<typename Case_t>
-const Term *CasesTerm<Case_t>::getBody() const
+TermHandle_t CasesTerm<Case_t>::getBody() const
 {
-	return m_Body.get();
+	return m_Body;
 }
 
 template<typename Case_t>
@@ -238,53 +201,79 @@ typename CasesTerm<Case_t>::Cases_t::const_iterator CasesTerm<Case_t>::end() con
 template class CasesTerm<Loc_t>;
 
 Term::Term()
-	: m_Kind(Nil)
-	, m_Term(NilTerm())
+	: m_Term(NilTerm())
 {}
 
 Term::Term(NilTerm &&term)
-	: m_Kind(Nil)
-	, m_Term(std::move(term))
+	: m_Term(std::move(term))
 {}
 
 Term::Term(VarTerm &&term)
-	: m_Kind(Var)
-	, m_Term(std::move(term))
+	: m_Term(std::move(term))
 {}
 
 Term::Term(AbsTerm &&term)
-	: m_Kind(Abs)
-	, m_Term(std::move(term))
+	: m_Term(std::move(term))
 {}
 
 Term::Term(AppTerm &&term)
-	: m_Kind(App)
-	, m_Term(std::move(term))
+	: m_Term(std::move(term))
 {}
 
 Term::Term(LocAbsTerm &&term)
-	: m_Kind(LocAbs)
-	, m_Term(std::move(term))
+	: m_Term(std::move(term))
 {}
 
 Term::Term(LocAppTerm &&term)
-	: m_Kind(LocApp)
-	, m_Term(std::move(term))
+	: m_Term(std::move(term))
 {}
 
 Term::Term(ValTerm &&term)
-	: m_Kind(Val)
-	, m_Term(std::move(term))
+	: m_Term(std::move(term))
 {}
 
 Term::Term(CasesTerm<Loc_t> &&term)
-	: m_Kind(LocCases)
-	, m_Term(std::move(term))
+	: m_Term(std::move(term))
 {}
 
-Term::Kind Term::kind() const
+bool Term::isNil() const
 {
-	return m_Kind;
+	return std::holds_alternative<NilTerm>(m_Term);
+}
+
+bool Term::isVar() const
+{
+	return std::holds_alternative<VarTerm>(m_Term);
+}
+
+bool Term::isAbs() const
+{
+	return std::holds_alternative<AbsTerm>(m_Term);
+}
+
+bool Term::isApp() const
+{
+	return std::holds_alternative<AppTerm>(m_Term);
+}
+
+bool Term::isLocAbs() const
+{
+	return std::holds_alternative<LocAbsTerm>(m_Term);
+}
+
+bool Term::isLocApp() const
+{
+	return std::holds_alternative<LocAppTerm>(m_Term);
+}
+
+bool Term::isVal() const
+{
+	return std::holds_alternative<ValTerm>(m_Term);
+}
+
+bool Term::isLocCases() const
+{
+	return std::holds_alternative<CasesTerm<Loc_t>>(m_Term);
 }
 
 const NilTerm &Term::asNil() const

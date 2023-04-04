@@ -10,6 +10,11 @@
 
 class Term;
 
+using TermOwner_t  = std::shared_ptr<Term>;
+using TermHandle_t = std::shared_ptr<const Term>;
+
+TermOwner_t newTerm(Term &&term);
+
 class NilTerm
 {
 };
@@ -17,101 +22,112 @@ class NilTerm
 class VarTerm
 {
 public:
+	VarTerm(const VarTerm &term) = delete;
+	VarTerm(VarTerm &&term) = default;
+
 	VarTerm(Var_t var);
 	VarTerm(Var_t var, Term &&body);
 
 	Var_t getVar() const;
-	const Term *getBody() const;
-
-	bool isVar(Var_t var) const;
+	TermHandle_t getBody() const;
 
 private:
 	Var_t m_Var;
-	std::unique_ptr<Term> m_Body;
+	TermOwner_t m_Body;
 };
 
 class AbsTerm
 {
 public:
+	AbsTerm(const AbsTerm &term) = delete;
+	AbsTerm(AbsTerm &&term) = default;
+
 	AbsTerm(Loc_t loc, std::optional<Var_t> var);
 	AbsTerm(Loc_t loc, std::optional<Var_t> var, Term &&body);
 
 	Loc_t getLoc() const;
 	std::optional<Var_t> getVar() const;
-	const Term *getBody() const;
+	TermHandle_t getBody() const;
 
 private:
 	Loc_t m_Loc;
 	std::optional<Var_t> m_Var;
-	std::unique_ptr<Term> m_Body;
+	TermOwner_t m_Body;
 };
 
 class AppTerm
 {
 public:
+	AppTerm(const AppTerm &term) = delete;
+	AppTerm(AppTerm &&term) = default;
+
 	AppTerm(const Loc_t &loc, Term &&arg);
 	AppTerm(const Loc_t &loc, Term &&arg, Term &&body);
 
 	Loc_t getLoc() const;
-	const Term *getArg() const;
-	const Term *getBody() const;
+	TermHandle_t getArg() const;
+	TermHandle_t getBody() const;
 
 private:
 	Loc_t m_Loc;
-	std::unique_ptr<Term> m_Arg;
-	std::unique_ptr<Term> m_Body;
+	TermOwner_t m_Arg;
+	TermOwner_t m_Body;
 };
 
 class LocAbsTerm
 {
 public:
+	LocAbsTerm(const LocAbsTerm &term) = delete;
+	LocAbsTerm(LocAbsTerm &&term) = default;
+
 	LocAbsTerm(Loc_t loc, std::optional<LocVar_t> var);
 	LocAbsTerm(Loc_t loc, std::optional<LocVar_t> var, Term &&body);
 
 	Loc_t getLoc() const;
 	std::optional<LocVar_t> getLocVar() const;
-	const Term *getBody() const;
+	TermHandle_t getBody() const;
 
 private:
 	Loc_t m_Loc;
 	std::optional<LocVar_t> m_LocVar;
-	std::unique_ptr<Term> m_Body;
+	TermOwner_t m_Body;
 };
 
 class LocAppTerm
 {
 public:
+	LocAppTerm(const LocAppTerm &term) = delete;
+	LocAppTerm(LocAppTerm &&term) = default;
+
 	LocAppTerm(Loc_t loc, LocVar_t arg);
 	LocAppTerm(Loc_t loc, LocVar_t arg, Term &&body);
 
 	Loc_t getLoc() const;
 	LocVar_t getArg() const;
-	const Term *getBody() const;
+	TermHandle_t getBody() const;
 
 private:
 	Loc_t m_Loc;
 	LocVar_t m_Arg;
-	std::unique_ptr<Term> m_Body;
+	TermOwner_t m_Body;
 };
 
 class ValTerm
 {
 public:
-	enum ValKind
-	{
-		Prim, Loc
-	};
+	ValTerm(const ValTerm &term) = delete;
+	ValTerm(ValTerm &&term) = default;
 
 	ValTerm(Prim_t prim);
 	ValTerm(Loc_t loc);
 
-	ValKind kind() const;
+	bool isPrim() const;
+	bool isLoc() const;
 
-	Prim_t getPrim() const;
-	Loc_t getLoc() const;
+	Prim_t asPrim() const;
+	Loc_t asLoc() const;
 
 private:
-	ValKind m_Kind;
 	std::variant<Prim_t, Loc_t> m_Val;
 };
 
@@ -119,7 +135,7 @@ template<typename Case_t>
 class CasesTerm
 {
 public:
-	using Cases_t = std::map<Case_t, std::unique_ptr<Term>>;
+	using Cases_t = std::map<Case_t, TermOwner_t>;
 
 public:
 	CasesTerm(const CasesTerm &cases) = delete;
@@ -131,7 +147,7 @@ public:
 	CasesTerm &operator=(const CasesTerm &term) = delete;
 	CasesTerm &operator=(CasesTerm &&term) = default;
 
-	const Term *getBody() const;
+	TermHandle_t getBody() const;
 
 	typename Cases_t::const_iterator find(const Case_t &c) const;
 	typename Cases_t::const_iterator begin() const;
@@ -139,18 +155,12 @@ public:
 
 private:
 	Cases_t m_Cases;
-	std::unique_ptr<Term> m_Body;
+	TermOwner_t m_Body;
 };
 
 class Term
 {
 public:
-	enum Kind
-	{
-		/* FCL-FMC    */ Nil, Var, Abs, App, LocAbs, LocApp,
-		/* Extensions */ Val, LocCases
-	};
-
 	Term();
 	Term(const Term &term) = delete;
 	Term(Term &&term) = default;
@@ -168,7 +178,15 @@ public:
 	Term &operator=(const Term &term) = delete;
 	Term &operator=(Term &&term) = default;
 
-	Kind kind() const;
+	bool isNil() const;
+	bool isVar() const;
+	bool isAbs() const;
+	bool isApp() const;
+	bool isLocAbs() const;
+	bool isLocApp() const;
+
+	bool isVal() const;
+	bool isLocCases() const;
 
 	const NilTerm &asNil() const;
 	const VarTerm &asVar() const;
@@ -181,11 +199,8 @@ public:
 	const CasesTerm<Loc_t> &asLocCases() const;
 
 private:
-	using Term_t = std::variant<
-		/* FCL-FMC    */ NilTerm, VarTerm, AbsTerm, AppTerm, LocAbsTerm, LocAppTerm,
-		/* Extensions */ ValTerm, CasesTerm<Loc_t>
-	>;
-
-	Kind m_Kind;
-	Term_t m_Term;
+	std::variant<
+		NilTerm, VarTerm, AbsTerm, AppTerm, LocAbsTerm, LocAppTerm, /* FCL-FMC    */
+		ValTerm, CasesTerm<Loc_t>									/* Extensions */ 
+	> m_Term;
 };

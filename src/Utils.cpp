@@ -7,11 +7,11 @@
 
 std::optional<Loc_t> getReservedLocFromId(const std::string_view &id)
 {
-	if      (id == k_DefaultLoc) { return Loc_t(k_DefaultLoc); }
-	else if (id == k_NewLoc)     { return Loc_t(k_NewLoc); }
-	else if (id == k_InputLoc)   { return Loc_t(k_InputLoc); }
-	else if (id == k_OutputLoc)  { return Loc_t(k_OutputLoc); }
-	else if (id == k_NullLoc)    { return Loc_t(k_NullLoc); }
+	if      (id == k_DefaultLoc) { return k_DefaultLoc; }
+	else if (id == k_NewLoc)     { return k_NewLoc; }
+	else if (id == k_InputLoc)   { return k_InputLoc; }
+	else if (id == k_OutputLoc)  { return k_OutputLoc; }
+	else if (id == k_NullLoc)    { return k_NullLoc; }
 
 	return std::nullopt;
 }
@@ -27,211 +27,103 @@ std::optional<std::string> getIdFromReservedLoc(const Loc_t &loc)
 	return std::nullopt;
 }
 
-std::string stringifyTerm(const Term &term, bool omitNil)
+std::string stringifyTerm(TermHandle_t term, bool omitNil)
 {
-	std::stringstream termSs;
-	const Term *termPtr = nullptr;
+	std::stringstream ss;
 
-	switch (term.kind())
+	for (int i = 0; term; ++i)
 	{
-	case Term::Nil:
-	{
-		if (!omitNil)
+		if (i > 0 && (!omitNil || !term->isNil()))
 		{
-			termSs << "*";
+			ss << " . ";
 		}
-		termPtr = nullptr;
-		break;
-	}
-	case Term::Var:
-	{
-		const VarTerm &var = term.asVar();
-		termSs << var.getVar();
-		termPtr = var.getBody();
-		break;
-	}
-	case Term::Abs:
-	{
-		const AbsTerm &abs = term.asAbs();
-		if (abs.getLoc() != k_DefaultLoc)
-		{
-			termSs << abs.getLoc();
-		}
-		termSs << "<" << abs.getVar().value_or("_") << ">";
-		termPtr = abs.getBody();
-		break;
-	}
-	case Term::App:
-	{
-		const AppTerm &app = term.asApp();
-		termSs << "[" << stringifyTerm(*app.getArg()) << "]";
-		if (app.getLoc() != k_DefaultLoc)
-		{
-			termSs << app.getLoc();
-		}
-		termPtr = app.getBody();
-		break;
-	}
-	case Term::LocAbs:
-	{
-		const LocAbsTerm &locAbs = term.asLocAbs();
-		if (locAbs.getLoc() != k_DefaultLoc)
-		{
-			termSs << locAbs.getLoc();
-		}
-		termSs << "<^" << locAbs.getLocVar().value_or("_") << ">";
-		termPtr = locAbs.getBody();
-		break;
-	}
-	case Term::LocApp:
-	{
-		const LocAppTerm &locApp = term.asLocApp();
-		termSs << "[#" << locApp.getArg() << "]";
-		if (locApp.getLoc() != k_DefaultLoc)
-		{
-			termSs << locApp.getLoc();
-		}
-		termPtr = locApp.getBody();
-		break;
-	}
-	case Term::Val:
-	{
-		const ValTerm &val = term.asVal();
-		if (val.kind() == ValTerm::Prim)
-		{
-			termSs << static_cast<uint32_t>(val.getPrim());
-		}
-		else if (val.kind() == ValTerm::Loc)
-		{
-			termSs << std::string(val.getLoc());
-		}
-		termPtr = nullptr;
-		break;
-	}
-	case Term::LocCases:
-	{
-		const CasesTerm<Loc_t> &cases = term.asLocCases();
-		termSs << "(";
-		for (auto itCases = cases.begin(); itCases != cases.end(); ++itCases)
-		{
-			termSs << itCases->first;
-			termSs << " -> " << stringifyTerm(*itCases->second.get());
 
-			auto itCasesCopy = itCases;
-			if (!(++itCasesCopy == cases.end()))
-			{
-				termSs << ", ";
-			}
-		}
-		termSs << ")";
-		termPtr = cases.getBody();
-		break;
-	}
-	}
-
-	while (termPtr)
-	{
-		switch (termPtr->kind())
-		{
-		case Term::Nil:
+		if (term->isNil())
 		{
 			if (!omitNil)
 			{
-				termSs << " . *";
+				ss << "*";
 			}
-			termPtr = nullptr;
-			break;
+			term = nullptr;
 		}
-		case Term::Var:
+		else if (term->isVar())
 		{
-			const VarTerm &var = termPtr->asVar();
-			termSs << " . " << var.getVar();
-			termPtr = var.getBody();
-			break;
+			const VarTerm &var = term->asVar();
+			ss << var.getVar();
+			term = var.getBody();
 		}
-		case Term::Abs:
+		else if (term->isAbs())
 		{
-			const AbsTerm &abs = termPtr->asAbs();
-			termSs << " . ";
+			const AbsTerm &abs = term->asAbs();
 			if (abs.getLoc() != k_DefaultLoc)
 			{
-				termSs << abs.getLoc();
+				ss << abs.getLoc();
 			}
-			termSs << "<" << abs.getVar().value_or("_") << ">";
-			termPtr = abs.getBody();
-			break;
+			ss << "<" << abs.getVar().value_or("_") << ">";
+			term = abs.getBody();
 		}
-		case Term::App:
+		else if (term->isApp())
 		{
-			const AppTerm &app = termPtr->asApp();
-			termSs << " . ";
-			termSs << "[" << stringifyTerm(*app.getArg()) << "]";
+			const AppTerm &app = term->asApp();
+			ss << "[" << stringifyTerm(app.getArg()) << "]";
 			if (app.getLoc() != k_DefaultLoc)
 			{
-				termSs << app.getLoc();
+				ss << app.getLoc();
 			}
-			termPtr = app.getBody();
-			break;
+			term = app.getBody();
 		}
-		case Term::LocAbs:
+		else if (term->isLocAbs())
 		{
-			const LocAbsTerm &locAbs = termPtr->asLocAbs();
-			termSs << " . ";
+			const LocAbsTerm &locAbs = term->asLocAbs();
 			if (locAbs.getLoc() != k_DefaultLoc)
 			{
-				termSs << locAbs.getLoc();
+				ss << locAbs.getLoc();
 			}
-			termSs << "<^" << locAbs.getLocVar().value_or("_") << ">";
-			termPtr = locAbs.getBody();
-			break;
+			ss << "<^" << locAbs.getLocVar().value_or("_") << ">";
+			term = locAbs.getBody();
 		}
-		case Term::LocApp:
+		else if (term->isLocApp())
 		{
-			const LocAppTerm &locApp = termPtr->asLocApp();
-			termSs << " . ";
-			termSs << "[#" << locApp.getArg() << "]";
+			const LocAppTerm &locApp = term->asLocApp();
+			ss << "[#" << locApp.getArg() << "]";
 			if (locApp.getLoc() != k_DefaultLoc)
 			{
-				termSs << locApp.getLoc();
+				ss << locApp.getLoc();
 			}
-			termPtr = locApp.getBody();
-			break;
+			term = locApp.getBody();
 		}
-		case Term::Val:
+		else if (term->isVal())
 		{
-			const ValTerm &val = term.asVal();
-			if (val.kind() == ValTerm::Prim)
+			const ValTerm &val = term->asVal();
+			if (val.isPrim())
 			{
-				termSs << static_cast<uint32_t>(val.getPrim());
+				ss << static_cast<uint32_t>(val.asPrim());
 			}
-			else if (val.kind() == ValTerm::Loc)
+			else if (val.isLoc())
 			{
-				termSs << std::string(val.getLoc());
+				ss << std::string(val.asLoc());
 			}
-			termPtr = nullptr;
-			break;
+			term = nullptr;
 		}
-		case Term::LocCases:
+		else if (term->isLocCases())
 		{
-			const CasesTerm<Loc_t> &cases = termPtr->asLocCases();
-			termSs << ". (";
+			const CasesTerm<Loc_t> &cases = term->asLocCases();
+			ss << "(";
 			for (auto itCases = cases.begin(); itCases != cases.end(); ++itCases)
 			{
-				termSs << itCases->first;
-				termSs  << " -> " << stringifyTerm(*itCases->second.get());
+				ss << itCases->first;
+				ss  << " -> " << stringifyTerm(itCases->second);
 
 				auto itCasesCopy = itCases;
 				if (!(++itCasesCopy == cases.end()))
 				{
-					termSs << ", ";
+					ss << ", ";
 				}
 			}
-			termSs << ")";
-			termPtr = cases.getBody();
-			break;
-		}
+			ss << ")";
+			term = cases.getBody();
 		}
 	}
 
-	return termSs.str();
+	return ss.str();
 }

@@ -8,6 +8,7 @@ static void machineError(std::string message, const Machine &machine)
 {
 	std::string stackDebug = machine.getStackDebug();
 	std::string callstackDebug = machine.getCallstackDebug();
+	// std::string bindDebug = machine.getBindDebug();
 
 	std::cerr << "[Machine Error] ";
 	std::cerr << message << std::endl;
@@ -31,6 +32,16 @@ static void machineError(std::string message, const Machine &machine)
 			std::cerr << "|  " << line << std::endl;
 		}
 	}
+
+	// {
+	// 	std::stringstream ss(bindDebug);
+	// 	std::string line;
+
+	// 	while (std::getline(ss, line, '\n'))
+	// 	{
+	// 		std::cerr << "|  " << line << std::endl;
+	// 	}
+	// }
 
 	std::exit(1);
 }
@@ -59,11 +70,7 @@ static std::string locGenerator()
 	return "loc:" + str;
 }
 
-Machine::Machine(const Program::FuncDefs_t *funcs)
-	: m_Funcs(funcs)
-{}
-
-void Machine::execute()
+void Machine::execute(const Program::FuncDefs_t &funcs)
 {
 	m_VarBindCtx.clear();
 	m_LocVarBindCtx.clear();
@@ -73,55 +80,53 @@ void Machine::execute()
 		m_CallStack.clear();
 	}
 
-	auto itFunc = m_Funcs->find("main");
-	if (itFunc == m_Funcs->end())
+	auto itFunc = funcs.find("main");
+	if (itFunc == funcs.end())
 	{
-		machineError("Program could not load entry point ('main' is not defined)!", *this);
+		machineError("Program has no entry point ('main' is not defined)!", *this);
 		return;
 	}
-	m_Frame.push_back(std::make_pair(&itFunc->second, std::make_pair(BoundVars_t(), BoundLocVars_t())));
-	m_CallStack.push_back({itFunc->first, &itFunc->second});
+	m_Frame.push_back(std::make_pair(itFunc->second, std::make_pair(BoundVars_t(), BoundLocVars_t())));
+	m_CallStack.push_back({itFunc->first, itFunc->second});
 
 	while (!m_Frame.empty())
 	{
 		// Copy the term and its bound variables because we pop afterwards
 		auto [term, bound] = m_Frame.back();
-		auto [boundVars, boundLocVars] = bound;
 		m_Frame.pop_back();
 
-		switch (term->kind())
-		{
-		case Term::Nil:
+		auto [boundVars, boundLocVars] = bound;
+
+		if (term->isNil())
 		{
 			if (!m_CallStack.empty())
 			{
 				m_CallStack.pop_back();
 			}
-			break;
 		}
-		case Term::Var:
+		else if (term->isVar())
 		{
 			const VarTerm &var = term->asVar();
 
 			// Push continuation term to frame
-			m_Frame.push_back(std::make_pair(var.getBody(), std::make_pair(boundVars, boundLocVars)));
+			m_Frame.push_back({var.getBody(), {boundVars, boundLocVars}});
 
 			// Find bound term
-			auto itBound = boundVars.find(var.getVar());
-			if (itBound != boundVars.end())
+			auto itBoundVars = boundVars.find(var.getVar());
+			if (itBoundVars != boundVars.end())
 			{
 				// Find binding context for bound term
-				auto ItEnv = m_VarBindCtx.find(itBound->second);
-				if (ItEnv != m_VarBindCtx.end())
+				auto itVarBindCtx = m_VarBindCtx.find(itBoundVars->second);
+				if (itVarBindCtx != m_VarBindCtx.end())
 				{
 					// Push bound term and its binding context to frame
-					m_Frame.push_back(std::make_pair(itBound->second, std::make_pair(ItEnv->second, boundLocVars)));
-					m_CallStack.push_back({"Bining '" + var.getVar() + "'", itBound->second});
+					m_Frame.push_back({itBoundVars->second, {itVarBindCtx->second, boundLocVars}});
+					m_CallStack.push_back({"Bining '" + var.getVar() + "'", itBoundVars->second});
 				}
 				else
 				{
 					machineError("Variable '" + var.getVar() + "' "
-						+ "is bound to '" + stringifyTerm(*itBound->second) + "' "
+						+ "is bound to '" + stringifyTerm(itBoundVars->second) + "' "
 						+ "but did not have an environment binding ! "
 						+ "Be weary of variable capture !", *this
 					);
@@ -129,12 +134,12 @@ void Machine::execute()
 			}
 			else
 			{
-				auto itFunc = m_Funcs->find(var.getVar());
-				if (itFunc != m_Funcs->end())
+				auto itFunc = funcs.find(var.getVar());
+				if (itFunc != funcs.end())
 				{
 					// Push bound term and a new binding context to frame
-					m_Frame.push_back(std::make_pair(&itFunc->second, std::make_pair(BoundVars_t(), BoundLocVars_t())));
-					m_CallStack.push_back({itFunc->first, &itFunc->second});
+					m_Frame.push_back({itFunc->second, {BoundVars_t(), BoundLocVars_t()}});
+					m_CallStack.push_back({itFunc->first, itFunc->second});
 				}
 				else
 				{
@@ -143,23 +148,18 @@ void Machine::execute()
 					);
 				}
 			}
-
-			break;
 		}
-		case Term::Abs:
+		else if (term->isAbs())
 		{
 			const AbsTerm &abs = term->asAbs();
-			const Term *toPop;
+			TermHandle_t toPop;
 
 			auto absActionWithLoc = [&](Loc_t loc) {
 				// New stream
 				if (loc == k_NewLoc)
 				{
-					// Need some way to generate 'new' terms without leaking memory :/
 					Loc_t newLoc = locGenerator();
-					Term *term = new Term();
-					*term = ValTerm(newLoc);
-					toPop = term;
+					toPop = freshTerm(ValTerm(newLoc));
 
 					m_Stacks[newLoc] = {};
 				}
@@ -169,13 +169,10 @@ void Machine::execute()
 					std::string in;
 					std::getline(std::cin, in);
 
-					// Need some way to generate 'new' terms without leaking memory :/
 					Parser parser;
-					Term *term = new Term();
 					if (auto termOpt = parser.parseTerm(in))
 					{
-						*term = std::move(termOpt.value());
-						toPop = term;
+						toPop = freshTerm(std::move(termOpt.value()));
 					}
 				}
 				// Output stream
@@ -234,16 +231,14 @@ void Machine::execute()
 
 			// Push continuation term to frame
 			m_Frame.push_back(std::make_pair(abs.getBody(), std::make_pair(boundVars, boundLocVars)));
-
-			break;
 		}
-		case Term::App:
+		else if (term->isApp())
 		{
 			const AppTerm &app = term->asApp();
-			const Term *toPush = app.getArg();
+			TermHandle_t toPush = app.getArg();
 
 			// Find and push argument term to stack
-			if (app.getArg()->kind() == Term::Var)
+			if (app.getArg()->isVar())
 			{
 				const VarTerm &var = app.getArg()->asVar();
 
@@ -254,45 +249,30 @@ void Machine::execute()
 				}
 				else
 				{
-					if (var.isVar(Var_t(k_DefaultLoc)))
+					if (var.getVar() == k_DefaultLoc)
 					{
-						// Need some way to generate 'new' terms without leaking memory :/
-						Term *term = new Term();
-						*term = ValTerm(Loc_t(k_DefaultLoc));
-						toPush = term;
+						toPush = freshTerm(ValTerm(k_DefaultLoc));
 					}
-					else if (var.isVar(Var_t(k_NewLoc)))
+					else if (var.getVar() == k_NewLoc)
 					{
-						// Need some way to generate 'new' terms without leaking memory :/
-						Term *term = new Term();
-						*term = ValTerm(Loc_t(k_NewLoc));
-						toPush = term;
+						toPush = freshTerm(ValTerm(k_NewLoc));
 					}
-					else if (var.isVar(Var_t(k_InputLoc)))
+					else if (var.getVar() == k_InputLoc)
 					{
-						// Need some way to generate 'new' terms without leaking memory :/
-						Term *term = new Term();
-						*term = ValTerm(Loc_t(k_InputLoc));
-						toPush = term;
+						toPush = freshTerm(ValTerm(k_InputLoc));
 					}
-					else if (var.isVar(Var_t(k_OutputLoc)))
+					else if (var.getVar() == k_OutputLoc)
 					{
-						// Need some way to generate 'new' terms without leaking memory :/
-						Term *term = new Term();
-						*term = ValTerm(Loc_t(k_OutputLoc));
-						toPush = term;
+						toPush = freshTerm(ValTerm(k_OutputLoc));
 					}
-					else if (var.isVar(Var_t(k_NullLoc)))
+					else if (var.getVar() == k_NullLoc)
 					{
-						// Need some way to generate 'new' terms without leaking memory :/
-						Term *term = new Term();
-						*term = ValTerm(Loc_t(k_NullLoc));
-						toPush = term;
+						toPush = freshTerm(ValTerm(k_NullLoc));
 					}
 					else
 					{
-						auto itFunc = m_Funcs->find(var.getVar());
-						if (itFunc == m_Funcs->end())
+						auto itFunc = funcs.find(var.getVar());
+						if (itFunc == funcs.end())
 						{
 							machineError("Application argument '" + var.getVar() + "' "
 								+ "is not bound to anything !", *this
@@ -317,7 +297,7 @@ void Machine::execute()
 				else if (loc == k_OutputLoc)
 				{
 					// Basic 'cheaty' implementation
-					std::cout << stringifyTerm(*toPush) << std::endl;
+					std::cout << stringifyTerm(toPush) << std::endl;
 				}
 				// Null stream
 				else if (loc == k_OutputLoc)
@@ -357,10 +337,8 @@ void Machine::execute()
 
 			// Push continuation term to frame
 			m_Frame.push_back(std::make_pair(app.getBody(), std::make_pair(boundVars, boundLocVars)));
-
-			break;
 		}
-		case Term::LocAbs:
+		else if (term->isLocAbs())
 		{
 			const LocAbsTerm &locAbs = term->asLocAbs();
 			Loc_t toPop;
@@ -394,15 +372,15 @@ void Machine::execute()
 				{
 					if (!m_Stacks[loc].empty())
 					{
-						const Term *toPopTerm = m_Stacks[loc].back();
+						TermHandle_t toPopTerm = m_Stacks[loc].back();
 						
-						if (toPopTerm->kind() == Term::Val)
+						if (toPopTerm->isVal())
 						{
 							const ValTerm &val = toPopTerm->asVal();
 
-							if (val.kind() == ValTerm::Loc)
+							if (val.isLoc())
 							{
-								toPop = val.getLoc();
+								toPop = val.asLoc();
 							}
 							else
 							{
@@ -454,56 +432,37 @@ void Machine::execute()
 
 			// Push continuation term to frame
 			m_Frame.push_back(std::make_pair(locAbs.getBody(), std::make_pair(boundVars, boundLocVars)));
-
-			break;
 		}
-		case Term::LocApp:
+		else if (term->isLocApp())
 		{
 			const LocAppTerm &locApp = term->asLocApp();
-			const Term *toPush;
+			TermHandle_t toPush;
 
 			// Find and push argument term to stack
 			auto it = boundLocVars.find(locApp.getArg());
 			if (it != boundLocVars.end())
 			{
-				Term *term = new Term();
-				*term = ValTerm(Loc_t(it->second));
-				toPush = term;
+				toPush = freshTerm(ValTerm(it->second));;
 			}
 			else if (locApp.getArg() == k_DefaultLoc)
 			{
-				// Need some way to generate 'new' terms without leaking memory :/
-				Term *term = new Term();
-				*term = ValTerm(Loc_t(k_DefaultLoc));
-				toPush = term;
+				toPush = freshTerm(ValTerm(k_DefaultLoc));
 			}
 			else if (locApp.getArg() == k_NewLoc)
 			{
-				// Need some way to generate 'new' terms without leaking memory :/
-				Term *term = new Term();
-				*term = ValTerm(Loc_t(k_NewLoc));
-				toPush = term;
+				toPush = freshTerm(ValTerm(k_NewLoc));
 			}
 			else if (locApp.getArg() == k_InputLoc)
 			{
-				// Need some way to generate 'new' terms without leaking memory :/
-				Term *term = new Term();
-				*term = ValTerm(Loc_t(k_InputLoc));
-				toPush = term;
+				toPush = freshTerm(ValTerm(k_InputLoc));
 			}
 			else if (locApp.getArg() == k_OutputLoc)
 			{
-				// Need some way to generate 'new' terms without leaking memory :/
-				Term *term = new Term();
-				*term = ValTerm(Loc_t(k_OutputLoc));
-				toPush = term;
+				toPush = freshTerm(ValTerm(k_OutputLoc));
 			}
 			else if (locApp.getArg() == k_NullLoc)
 			{
-				// Need some way to generate 'new' terms without leaking memory :/
-				Term *term = new Term();
-				*term = ValTerm(Loc_t(k_NullLoc));
-				toPush = term;
+				toPush = freshTerm(ValTerm(k_NullLoc));
 			}
 			else
 			{
@@ -512,7 +471,7 @@ void Machine::execute()
 				);
 			}
 
-			auto appActionWithLoc = [&](Var_t loc) {
+			auto appActionWithLoc = [&](Loc_t loc) {
 				// New stream
 				if (loc == k_NewLoc)
 				{
@@ -527,7 +486,7 @@ void Machine::execute()
 				else if (loc == k_OutputLoc)
 				{
 					// Basic 'cheaty' implementation
-					std::cout << stringifyTerm(*toPush) << std::endl;
+					std::cout << stringifyTerm(toPush) << std::endl;
 				}
 				// Null stream
 				else if (loc == k_OutputLoc)
@@ -567,27 +526,23 @@ void Machine::execute()
 
 			// Push continuation term to frame
 			m_Frame.push_back(std::make_pair(locApp.getBody(), std::make_pair(boundVars, boundLocVars)));
-
-			break;
 		}
-		case Term::Val:
+		else if (term->isVal())
 		{
 			machineError("Value term is being executed by machine ! Perhaps something wasn't pushed to the stack !", *this
 			);
-			
-			break;
 		}
-		case Term::LocCases:
+		else if (term->isLocCases())
 		{
 			const CasesTerm<Loc_t> &cases = term->asLocCases();
-			const Term *toPop;
+			TermHandle_t toPop;
 
 			// Push continuation term to frame
 			m_Frame.push_back(std::make_pair(cases.getBody(), std::make_pair(boundVars, boundLocVars)));
 
 			if (!m_Stacks[Loc_t(k_DefaultLoc)].empty())
 			{
-				toPop = m_Stacks[Var_t(k_DefaultLoc)].back();
+				toPop = m_Stacks[k_DefaultLoc].back();
 				m_Stacks[Loc_t(k_DefaultLoc)].pop_back();
 			}
 			else
@@ -595,22 +550,22 @@ void Machine::execute()
 				machineError("Cases is attempting to match from empty stack !", *this);
 			}
 
-			if (toPop->kind() == Term::Val)
+			if (toPop->isVal())
 			{
 				const ValTerm &val = toPop->asVal();
 
-				if (val.kind() == ValTerm::Prim)
+				if (val.isPrim())
 				{
 					machineError("Cases are not implemented for primitives !", *this);
 				}
-				else if (val.kind() == ValTerm::Loc)
+				else if (val.isLoc())
 				{
-					auto itCase = cases.find(val.getLoc());
+					auto itCase = cases.find(val.asLoc());
 					if (itCase != cases.end())
 					{
 						// Push case term and the global binding context to frame
-						m_Frame.push_back(std::make_pair(itCase->second.get(), std::make_pair(boundVars, boundLocVars)));
-						m_CallStack.push_back({"Case '" + val.getLoc() + "'", itCase->second.get()});
+						m_Frame.push_back(std::make_pair(itCase->second, std::make_pair(boundVars, boundLocVars)));
+						m_CallStack.push_back({"Case '" + val.asLoc() + "'", itCase->second});
 					}
 					else
 					{
@@ -618,8 +573,8 @@ void Machine::execute()
 						if (itCase != cases.end())
 						{
 							// Push case term and the global binding context to frame
-							m_Frame.push_back(std::make_pair(itCase->second.get(), std::make_pair(boundVars, boundLocVars)));
-							m_CallStack.push_back({"Case 'otherwise'", itCase->second.get()});
+							m_Frame.push_back({itCase->second, {boundVars, boundLocVars}});
+							m_CallStack.push_back({"Case 'otherwise'", itCase->second});
 						}
 						else
 						{
@@ -632,11 +587,14 @@ void Machine::execute()
 			{
 				machineError("Cases is attemping to match a non-value !", *this);
 			}
-
-			break;
-		}
 		}
 	}
+}
+
+TermHandle_t Machine::freshTerm(Term &&term)
+{
+	m_FreshTerms.emplace_back(newTerm(std::move(term)));	
+	return m_FreshTerms.back();
 }
 
 std::string Machine::getStackDebug() const
@@ -658,7 +616,7 @@ std::string Machine::getStackDebug() const
 
 		for (auto itStack = itStacks->second.rbegin(); itStack != itStacks->second.rend(); ++itStack)
 		{
-			ss << "    " << stringifyTerm(*(*itStack)) << std::endl;
+			ss << "    " << stringifyTerm((*itStack)) << std::endl;
 		}
 
 		auto itStacksCopy = itStacks;
@@ -667,25 +625,6 @@ std::string Machine::getStackDebug() const
 			ss << std::endl;
 		}
 	}
-
-	// ss << "--------------------" << std::endl;
-	// ss << "--- Bind Context ---" << std::endl;
-
-	// for (auto itBindCtx = m_VarBindCtx.begin(); itBindCtx != m_VarBindCtx.end(); ++itBindCtx)
-	// {
-	// 	ss << "  -- Binds for term " << stringifyTerm(*(*itBindCtx).first) << std::endl;
-
-	// 	for (auto itBinds = itBindCtx->second.begin(); itBinds != itBindCtx->second.end(); ++itBinds)
-	// 	{
-	// 		ss << "    " << (*itBinds).first << " --> " << stringifyTerm(*(*itBinds).second) << std::endl;
-	// 	}
-
-	// 	auto itBindCtxCopy = itBindCtx;
-	// 	if (!(++itBindCtxCopy == m_VarBindCtx.end()))
-	// 	{
-	// 		ss << std::endl;
-	// 	}
-	// }
 
 	ss << "--------------------" << std::endl;
 
@@ -701,10 +640,37 @@ std::string Machine::getCallstackDebug() const
 	for (auto itFrame = m_CallStack.rbegin(); itFrame != m_CallStack.rend(); ++itFrame)
 	{
 		ss << std::string(m_CallStack.size() - (m_CallStack.rend() - itFrame), ' ');
-		ss << "> " << itFrame->first << " => " << stringifyTerm(*itFrame->second) << std::endl;
+		ss << "> " << itFrame->first << " => " << stringifyTerm(itFrame->second) << std::endl;
 	}
 
 	ss << "---------------" << std::endl;
+
+	return ss.str();
+}
+
+std::string Machine::getBindDebug() const
+{
+	std::stringstream ss;
+
+	ss << "--- Bind Context ---" << std::endl;
+
+	for (auto itBindCtx = m_VarBindCtx.begin(); itBindCtx != m_VarBindCtx.end(); ++itBindCtx)
+	{
+		ss << "  -- Binds for term " << stringifyTerm(itBindCtx->first) << std::endl;
+
+		for (auto itBinds = itBindCtx->second.begin(); itBinds != itBindCtx->second.end(); ++itBinds)
+		{
+			ss << "    " << (*itBinds).first << " --> " << stringifyTerm(itBinds->second) << std::endl;
+		}
+
+		auto itBindCtxCopy = itBindCtx;
+		if (!(++itBindCtxCopy == m_VarBindCtx.end()))
+		{
+			ss << std::endl;
+		}
+	}
+
+	ss << "--------------------" << std::endl;
 
 	return ss.str();
 }
