@@ -23,10 +23,10 @@ LinkedList = (
 )
 
 push_back = (
-	<v> . <^p> . p<pv> . p<^pp> . [#pp] . (
-		null      -> [v] . LinkedList . <^npp> . [#npp]p . [pv]p,
-		otherwise -> [#pp]p . [pv]p . [#pp] . [v] . push_back
-	)
+    <v> . <^p> . p<pv> . p<^pp> . [#pp] . (
+        null      -> [v] . LinkedList . <^npp> . [#npp]p . [pv]p,
+        otherwise -> [#pp]p . [pv]p . [#pp] . [v] . push_back
+    )
 )
 ```
 
