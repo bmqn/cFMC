@@ -19,7 +19,7 @@ static void machineError(std::string message, const Machine &machine)
 
 		while (std::getline(ss, line, '\n'))
 		{
-			std::cerr << "|  " << line << std::endl;
+			std::cerr << "| " << line << std::endl;
 		}
 	}
 
@@ -29,7 +29,7 @@ static void machineError(std::string message, const Machine &machine)
 
 		while (std::getline(ss, line, '\n'))
 		{
-			std::cerr << "|  " << line << std::endl;
+			std::cerr << "| " << line << std::endl;
 		}
 	}
 
@@ -39,7 +39,7 @@ static void machineError(std::string message, const Machine &machine)
 
 	// 	while (std::getline(ss, line, '\n'))
 	// 	{
-	// 		std::cerr << "|  " << line << std::endl;
+	// 		std::cerr << "| " << line << std::endl;
 	// 	}
 	// }
 
@@ -67,7 +67,7 @@ static std::string locGenerator()
 		ptrs[4] = (ptrs[4] + (ptrs[0] % 725 == 0));
 	}
 
-	return "loc:" + str;
+	return "loc_" + str;
 }
 
 void Machine::execute(const Program::FuncDefs_t &funcs)
@@ -249,9 +249,9 @@ void Machine::execute(const Program::FuncDefs_t &funcs)
 				}
 				else
 				{
-					if (var.getVar() == k_DefaultLoc)
+					if (var.getVar() == k_LambdaLoc)
 					{
-						toPush = freshTerm(ValTerm(k_DefaultLoc));
+						toPush = freshTerm(ValTerm(k_LambdaLoc));
 					}
 					else if (var.getVar() == k_NewLoc)
 					{
@@ -444,9 +444,9 @@ void Machine::execute(const Program::FuncDefs_t &funcs)
 			{
 				toPush = freshTerm(ValTerm(it->second));;
 			}
-			else if (locApp.getArg() == k_DefaultLoc)
+			else if (locApp.getArg() == k_LambdaLoc)
 			{
-				toPush = freshTerm(ValTerm(k_DefaultLoc));
+				toPush = freshTerm(ValTerm(k_LambdaLoc));
 			}
 			else if (locApp.getArg() == k_NewLoc)
 			{
@@ -540,10 +540,10 @@ void Machine::execute(const Program::FuncDefs_t &funcs)
 			// Push continuation term to frame
 			m_Frame.push_back(std::make_pair(cases.getBody(), std::make_pair(boundVars, boundLocVars)));
 
-			if (!m_Stacks[Loc_t(k_DefaultLoc)].empty())
+			if (!m_Stacks[Loc_t(k_LambdaLoc)].empty())
 			{
-				toPop = m_Stacks[k_DefaultLoc].back();
-				m_Stacks[Loc_t(k_DefaultLoc)].pop_back();
+				toPop = m_Stacks[k_LambdaLoc].back();
+				m_Stacks[Loc_t(k_LambdaLoc)].pop_back();
 			}
 			else
 			{
@@ -607,7 +607,7 @@ std::string Machine::getStackDebug() const
 	{
 		if (auto idOpt = getIdFromReservedLoc(itStacks->first))
 		{
-			ss << "  -- Location (Reserved) " << idOpt.value() << std::endl;
+			ss << "  -- (Reserved) Location " << idOpt.value() << std::endl;
 		}
 		else
 		{

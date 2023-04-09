@@ -86,7 +86,7 @@ int main()
 
 	{
 		Parser parser;
-		Program program = parser.parseProgram(ex00); // <-- Change example here ! 
+		Program program = parser.parseProgram(ex40); // <-- Change example here ! 
 		program.load([](const Program::FuncDefs_t &funcs) {
 			Machine machine;
 			machine.execute(funcs);

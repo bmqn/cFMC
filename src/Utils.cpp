@@ -7,7 +7,7 @@
 
 std::optional<Loc_t> getReservedLocFromId(const std::string_view &id)
 {
-	if      (id == k_DefaultLoc) { return k_DefaultLoc; }
+	if      (id == k_LambdaLoc) { return k_LambdaLoc; }
 	else if (id == k_NewLoc)     { return k_NewLoc; }
 	else if (id == k_InputLoc)   { return k_InputLoc; }
 	else if (id == k_OutputLoc)  { return k_OutputLoc; }
@@ -18,7 +18,7 @@ std::optional<Loc_t> getReservedLocFromId(const std::string_view &id)
 
 std::optional<std::string> getIdFromReservedLoc(const Loc_t &loc)
 {
-	if      (loc == k_DefaultLoc) { return std::string(k_DefaultLoc); }
+	if      (loc == k_LambdaLoc) { return std::string(k_LambdaLoc); }
 	else if (loc == k_NewLoc)     { return std::string(k_NewLoc); }
 	else if (loc == k_InputLoc)   { return std::string(k_InputLoc); }
 	else if (loc == k_OutputLoc)  { return std::string(k_OutputLoc); }
@@ -55,7 +55,7 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 		else if (term->isAbs())
 		{
 			const AbsTerm &abs = term->asAbs();
-			if (abs.getLoc() != k_DefaultLoc)
+			if (abs.getLoc() != k_LambdaLoc)
 			{
 				ss << abs.getLoc();
 			}
@@ -66,7 +66,7 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 		{
 			const AppTerm &app = term->asApp();
 			ss << "[" << stringifyTerm(app.getArg()) << "]";
-			if (app.getLoc() != k_DefaultLoc)
+			if (app.getLoc() != k_LambdaLoc)
 			{
 				ss << app.getLoc();
 			}
@@ -75,7 +75,7 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 		else if (term->isLocAbs())
 		{
 			const LocAbsTerm &locAbs = term->asLocAbs();
-			if (locAbs.getLoc() != k_DefaultLoc)
+			if (locAbs.getLoc() != k_LambdaLoc)
 			{
 				ss << locAbs.getLoc();
 			}
@@ -86,7 +86,7 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 		{
 			const LocAppTerm &locApp = term->asLocApp();
 			ss << "[#" << locApp.getArg() << "]";
-			if (locApp.getLoc() != k_DefaultLoc)
+			if (locApp.getLoc() != k_LambdaLoc)
 			{
 				ss << locApp.getLoc();
 			}
@@ -101,7 +101,7 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 			}
 			else if (val.isLoc())
 			{
-				ss << std::string(val.asLoc());
+				ss << "#" << std::string(val.asLoc());
 			}
 			term = nullptr;
 		}

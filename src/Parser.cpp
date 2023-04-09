@@ -11,22 +11,30 @@ static void parseError(std::string message, const Lexer &lexer)
 {
 	if (auto tokenBufferOpt = lexer.getPeekBuffer())
 	{
+		const std::string buffer = lexer.getBuffer();
 		std::string tokenBuffer = tokenBufferOpt.value();
-		int tokenBufferLen = tokenBuffer.size();
 
 		std::cerr << "[Parse Error]" << std::endl;
 
-		const std::string buffer = lexer.getBuffer();
-		size_t tokenBufferPos = 0;
-
-		std::stringstream ss(buffer);
 		std::string line;
-		while (std::getline(ss, line, '\n'))
+		std::stringstream ss(buffer);
+		while (std::getline(ss, line))
 		{
-			std::cerr << "|  " << line << std::endl;
-			tokenBufferPos = line.find_last_of(tokenBuffer);
+			std::cerr << "| " << line << std::endl;
 		}
 
+		auto findSub = [](const std::string& str, const std::string& sub) {
+			std::size_t res = str.rfind(sub, str.size() - sub.size());
+			return (res != std::string::npos) ? std::optional(res) : std::nullopt;
+		};
+
+		size_t tokenBufferPos = 0;
+		size_t tokenBufferLen = 0;
+		if (auto tokenBufferPosOpt = findSub(line, tokenBuffer))
+		{
+			tokenBufferPos = tokenBufferPosOpt.value();
+			tokenBufferLen = tokenBuffer.size();
+		}
 		std::string err1;
 		err1 += std::string(tokenBufferPos, ' ');
 		err1 += std::string(tokenBufferLen, '^');
@@ -39,8 +47,8 @@ static void parseError(std::string message, const Lexer &lexer)
 		err2 += tokenBuffer;
 		err2 += "'";
 
-		std::cerr << "|  " << err1 << std::endl;
-		std::cerr << "|  " << err2 << std::endl;
+		std::cerr << "| " << err1 << std::endl;
+		std::cerr << "| " << err2 << std::endl;
 	}
 
 	std::exit(1);
@@ -246,18 +254,18 @@ std::optional<AbsTerm> Parser::parseAbs()
 				if (auto bodyOpt = parseTerm())
 				{
 					return AbsTerm(
-						locOpt.value_or(k_DefaultLoc), varOpt,
+						locOpt.value_or(k_LambdaLoc), varOpt,
 						std::move(bodyOpt.value())
 					);
 				}
 				else
 				{
-					parseError("Expected body of abstraction", *m_Lexer);
+					parseError("Expected term after abstraction", *m_Lexer);
 				}
 			}
 
 			return AbsTerm(
-				locOpt.value_or(k_DefaultLoc), varOpt
+				locOpt.value_or(k_LambdaLoc), varOpt
 			);
 		}
 		else
@@ -297,19 +305,19 @@ std::optional<AppTerm> Parser::parseApp()
 					if (auto bodyOpt = parseTerm())
 					{
 						return AppTerm(
-							locOpt.value_or(k_DefaultLoc),
+							locOpt.value_or(k_LambdaLoc),
 							std::move(argOpt.value()),
 							std::move(bodyOpt.value())
 						);
 					}
 					else
 					{
-						parseError("Expected body of application", *m_Lexer);
+						parseError("Expected term after application", *m_Lexer);
 					}
 				}
 
 				return AppTerm(
-					locOpt.value_or(k_DefaultLoc),
+					locOpt.value_or(k_LambdaLoc),
 					std::move(argOpt.value())
 				);
 			}
@@ -372,18 +380,18 @@ std::optional<LocAbsTerm> Parser::parseLocAbs()
 				if (auto bodyOpt = parseTerm())
 				{
 					return LocAbsTerm(
-						locOpt.value_or(k_DefaultLoc), varOpt,
+						locOpt.value_or(k_LambdaLoc), varOpt,
 						std::move(bodyOpt.value())
 					);
 				}
 				else
 				{
-					parseError("Expected body of abstraction", *m_Lexer);
+					parseError("Expected term after abstraction", *m_Lexer);
 				}
 			}
 
 			return LocAbsTerm(
-				locOpt.value_or(k_DefaultLoc), varOpt
+				locOpt.value_or(k_LambdaLoc), varOpt
 			);
 		}
 		else
@@ -428,19 +436,19 @@ std::optional<LocAppTerm> Parser::parseLocApp()
 						if (auto bodyOpt = parseTerm())
 						{
 							return LocAppTerm(
-								locOpt.value_or(k_DefaultLoc),
+								locOpt.value_or(k_LambdaLoc),
 								argOpt.value(),
 								std::move(bodyOpt.value())
 							);
 						}
 						else
 						{
-							parseError("Expected body of application", *m_Lexer);
+							parseError("Expected term after application", *m_Lexer);
 						}
 					}
 
 					return LocAppTerm(
-						locOpt.value_or(k_DefaultLoc),
+						locOpt.value_or(k_LambdaLoc),
 						argOpt.value()
 					);
 				}

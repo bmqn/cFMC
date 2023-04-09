@@ -28,6 +28,9 @@ public:
 	VarTerm(Var_t var);
 	VarTerm(Var_t var, Term &&body);
 
+	VarTerm &operator=(const VarTerm &term) = delete;
+	VarTerm &operator=(VarTerm &&term) = delete;
+
 	Var_t getVar() const;
 	TermHandle_t getBody() const;
 
@@ -44,6 +47,9 @@ public:
 
 	AbsTerm(Loc_t loc, std::optional<Var_t> var);
 	AbsTerm(Loc_t loc, std::optional<Var_t> var, Term &&body);
+
+	AbsTerm &operator=(const AbsTerm &term) = delete;
+	AbsTerm &operator=(AbsTerm &&term) = delete;
 
 	Loc_t getLoc() const;
 	std::optional<Var_t> getVar() const;
@@ -64,6 +70,9 @@ public:
 	AppTerm(const Loc_t &loc, Term &&arg);
 	AppTerm(const Loc_t &loc, Term &&arg, Term &&body);
 
+	AppTerm &operator=(const AppTerm &term) = delete;
+	AppTerm &operator=(AppTerm &&term) = delete;
+
 	Loc_t getLoc() const;
 	TermHandle_t getArg() const;
 	TermHandle_t getBody() const;
@@ -82,6 +91,9 @@ public:
 
 	LocAbsTerm(Loc_t loc, std::optional<LocVar_t> var);
 	LocAbsTerm(Loc_t loc, std::optional<LocVar_t> var, Term &&body);
+
+	LocAbsTerm &operator=(const LocAbsTerm &term) = delete;
+	LocAbsTerm &operator=(LocAbsTerm &&term) = delete;
 
 	Loc_t getLoc() const;
 	std::optional<LocVar_t> getLocVar() const;
@@ -102,6 +114,9 @@ public:
 	LocAppTerm(Loc_t loc, LocVar_t arg);
 	LocAppTerm(Loc_t loc, LocVar_t arg, Term &&body);
 
+	LocAppTerm &operator=(const LocAppTerm &term) = delete;
+	LocAppTerm &operator=(LocAppTerm &&term) = delete;
+
 	Loc_t getLoc() const;
 	LocVar_t getArg() const;
 	TermHandle_t getBody() const;
@@ -120,6 +135,9 @@ public:
 
 	ValTerm(Prim_t prim);
 	ValTerm(Loc_t loc);
+
+	ValTerm &operator=(const ValTerm &term) = delete;
+	ValTerm &operator=(ValTerm &&term) = delete;
 
 	bool isPrim() const;
 	bool isLoc() const;
@@ -145,7 +163,7 @@ public:
 	CasesTerm(Cases_t &&cases);
 
 	CasesTerm &operator=(const CasesTerm &term) = delete;
-	CasesTerm &operator=(CasesTerm &&term) = default;
+	CasesTerm &operator=(CasesTerm &&term) = delete;
 
 	TermHandle_t getBody() const;
 
@@ -176,7 +194,7 @@ public:
 	Term(CasesTerm<Loc_t> &&term);
 
 	Term &operator=(const Term &term) = delete;
-	Term &operator=(Term &&term) = default;
+	Term &operator=(Term &&term) = delete;
 
 	bool isNil() const;
 	bool isVar() const;
