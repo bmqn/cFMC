@@ -1,7 +1,0 @@
-create = (
-	new<cp> . [cp]
-)
-
-push = (
-	
-)
