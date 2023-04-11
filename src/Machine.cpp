@@ -70,7 +70,7 @@ static std::string locGenerator()
 	return "loc_" + str;
 }
 
-void Machine::execute(const Program::FuncDefs_t &funcs)
+void Machine::execute(const Program &program)
 {
 	m_VarBindCtx.clear();
 	m_LocVarBindCtx.clear();
@@ -80,14 +80,16 @@ void Machine::execute(const Program::FuncDefs_t &funcs)
 		m_CallStack.clear();
 	}
 
-	auto itFunc = funcs.find("main");
-	if (itFunc == funcs.end())
+	if (auto termOpt = program.load("main"))
+	{
+		m_Frame.push_back(std::make_pair(termOpt.value(), std::make_pair(BoundVars_t(), BoundLocVars_t())));
+		m_CallStack.push_back({"main", termOpt.value()});
+	}
+	else
 	{
 		machineError("Program has no entry point ('main' is not defined)!", *this);
 		return;
 	}
-	m_Frame.push_back(std::make_pair(itFunc->second, std::make_pair(BoundVars_t(), BoundLocVars_t())));
-	m_CallStack.push_back({itFunc->first, itFunc->second});
 
 	while (!m_Frame.empty())
 	{
@@ -134,12 +136,11 @@ void Machine::execute(const Program::FuncDefs_t &funcs)
 			}
 			else
 			{
-				auto itFunc = funcs.find(var.getVar());
-				if (itFunc != funcs.end())
+				if (auto termOpt = program.load(var.getVar()))
 				{
 					// Push bound term and a new binding context to frame
-					m_Frame.push_back({itFunc->second, {BoundVars_t(), BoundLocVars_t()}});
-					m_CallStack.push_back({itFunc->first, itFunc->second});
+					m_Frame.push_back({termOpt.value(), {BoundVars_t(), BoundLocVars_t()}});
+					m_CallStack.push_back({var.getVar(), termOpt.value()});
 				}
 				else
 				{
@@ -271,8 +272,7 @@ void Machine::execute(const Program::FuncDefs_t &funcs)
 					}
 					else
 					{
-						auto itFunc = funcs.find(var.getVar());
-						if (itFunc == funcs.end())
+						if (!program.load(var.getVar()))
 						{
 							machineError("Application argument '" + var.getVar() + "' "
 								+ "is not bound to anything !", *this

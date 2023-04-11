@@ -18,7 +18,7 @@ enum class Token
 	Equal, // =
 	Comma, // ,
 	Underscore, // _
-	Caret, // ^
+	Ampersand, // @
 	Hash, // #
 
 	Arrow, // ->

@@ -216,14 +216,14 @@ std::optional<AbsTerm> Parser::parseAbs()
 
 	if (m_Lexer->isPeekToken(Token::Id) &&
 		m_Lexer->isPeekToken(Token::Lab, 1) &&
-		!m_Lexer->isPeekToken(Token::Caret, 2))
+		!m_Lexer->isPeekToken(Token::Ampersand, 2))
 	{
 		locOpt = m_Lexer->getPeekBuffer();
 		m_Lexer->next();
 	}
 
 	if (m_Lexer->isPeekToken(Token::Lab) &&
-		!m_Lexer->isPeekToken(Token::Caret, 1))
+		!m_Lexer->isPeekToken(Token::Ampersand, 1))
 	{
 		m_Lexer->next();
 
@@ -341,14 +341,14 @@ std::optional<LocAbsTerm> Parser::parseLocAbs()
 
 	if (m_Lexer->isPeekToken(Token::Id) &&
 		m_Lexer->isPeekToken(Token::Lab, 1) &&
-		m_Lexer->isPeekToken(Token::Caret, 2))
+		m_Lexer->isPeekToken(Token::Ampersand, 2))
 	{
 		locOpt = m_Lexer->getPeekBuffer();
 		m_Lexer->next();
 	}
 
 	if (m_Lexer->isPeekToken(Token::Lab) &&
-		m_Lexer->isPeekToken(Token::Caret, 1))
+		m_Lexer->isPeekToken(Token::Ampersand, 1))
 	{
 		m_Lexer->next();
 		m_Lexer->next();

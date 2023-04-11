@@ -1,12 +1,15 @@
 #include "Program.hpp"
 
-#include <iostream>
-
 Program::Program(FuncDefs_t &&funcs)
 	: m_Funcs(std::move(funcs))
 {}
 
-void Program::load(std::function<void(const FuncDefs_t &)> onLoad) const
+std::optional<TermHandle_t> Program::load(const std::string &funcName) const
 {
-	onLoad(m_Funcs);
+	auto it = m_Funcs.find(funcName);
+	if (it != m_Funcs.end())
+	{
+		return it->second;
+	}
+	return std::nullopt;
 }

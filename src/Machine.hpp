@@ -20,7 +20,7 @@ using Callstack_t = std::vector<std::pair<std::string, TermHandle_t>>;
 class Machine
 {
 public:
-	void execute(const Program::FuncDefs_t &funcs);
+	void execute(const Program &funcs);
 
 	std::string getStackDebug() const;
 	std::string getCallstackDebug() const;

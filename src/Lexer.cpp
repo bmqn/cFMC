@@ -173,9 +173,9 @@ std::optional<std::pair<Token, std::string>> Lexer::advance()
 	{
 		return std::make_pair(Token::Underscore, buffer);
 	}
-	else if (c == '^')
+	else if (c == '@')
 	{
-		return std::make_pair(Token::Caret, buffer);
+		return std::make_pair(Token::Ampersand, buffer);
 	}
 	else if (c == '#')
 	{

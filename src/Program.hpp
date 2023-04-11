@@ -2,8 +2,7 @@
 
 #include <unordered_map>
 #include <string>
-#include <memory>
-#include <functional>
+#include <optional>
 
 #include "Term.hpp"
 
@@ -19,7 +18,7 @@ public:
 
 	Program(FuncDefs_t &&funcs);
 
-	void load(std::function<void(const FuncDefs_t &)> onLoad) const;
+	std::optional<TermHandle_t> load(const std::string &funcName) const;
 
 private:
 	FuncDefs_t m_Funcs;
