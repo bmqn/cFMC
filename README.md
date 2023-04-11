@@ -1,14 +1,13 @@
 # cFMC
 
-A parser and interpreter for a C-inspired Functional Machine Calculus (FMC) variant which has first-class locations. This forms part of my dissertation project at the University of Bath which aims to investigate first-class locations in the FMC.
-
+An interpreter for a C-inspired Functional Machine Calculus (FMC) variant which has first-class locations. This forms part of my dissertation project at the University of Bath which aims to investigate first-class locations in the FMC.
 
 ### Programs
 
 Program which pushes (prints) `0` to the output stream. 
 
 ```
-write = (<^a> . <x> . a[x])
+write = (<@a> . <x> . a[x])
 print = ([#out] . write)
 main  = ([0] . print)
 ```
@@ -19,12 +18,12 @@ How about a linked-list ? Let's define function `LinkedList` to create a linked-
 
 ```
 LinkedList = (
-	<v> . new<^p> . [#null]p . [v]p . [#p]
+	<v> . new<@p> . [#null]p . [v]p . [#p]
 )
 
 push_back = (
-    <v> . <^p> . p<pv> . p<^pp> . [#pp] . (
-        null      -> [v] . LinkedList . <^npp> . [#npp]p . [pv]p,
+    <v> . <@p> . p<pv> . p<@pp> . [#pp] . (
+        null      -> [v] . LinkedList . <@npp> . [#npp]p . [pv]p,
         otherwise -> [#pp]p . [pv]p . [#pp] . [v] . push_back
     )
 )
@@ -34,7 +33,7 @@ Let's also define a function `traverse` for traversing the list in order and run
 
 ```
 traverse = (
-    <f> . <^p> . p<pv> . p<^pp> . [#pp]p . [pv]p . [#pp] . (
+    <f> . <@p> . p<pv> . p<@pp> . [#pp]p . [pv]p . [#pp] . (
         null      -> [pv] . f,
         otherwise -> [pv] . f . [#pp] . [f] . traverse
     )
@@ -49,7 +48,7 @@ print = (
 )
 
 main = (
-    [1] . LinkedList . <^p>
+    [1] . LinkedList . <@p>
     . [#p] . [2] . push_back
     . [#p] . [3] . push_back
     . [#p] . [4] . push_back
@@ -66,4 +65,4 @@ Execute the included shell script `run.sh` to compile and run the program. This 
 
 ### Windows
 
-... Don't be silly, use WSL ! There is `run.bat` which will work if executed from the VS Developer Command Prompt.
+Execute the included batch script `run.bat` to compile and run the program. This will generate the binary `cfmc.exe` in the directory `build/` and execute it. It will work if executed from the VS Developer Command Prompt. Alternatively, just use WSL !
