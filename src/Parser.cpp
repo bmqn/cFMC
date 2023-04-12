@@ -11,43 +11,45 @@ static void parseError(std::string message, const Lexer &lexer)
 {
 	if (auto tokenBufferOpt = lexer.getPeekBuffer())
 	{
-		const std::string buffer = lexer.getBuffer();
-		std::string tokenBuffer = tokenBufferOpt.value();
-
 		std::cerr << "[Parse Error]" << std::endl;
-
-		std::string line;
-		std::stringstream ss(buffer);
-		while (std::getline(ss, line))
-		{
-			std::cerr << "| " << line << std::endl;
-		}
 
 		auto findSub = [](const std::string& str, const std::string& sub) {
 			std::size_t res = str.rfind(sub, str.size() - sub.size());
 			return (res != std::string::npos) ? std::optional(res) : std::nullopt;
 		};
 
+		const std::string buffer = lexer.getBuffer();
+		std::string tokenBuffer = tokenBufferOpt.value();
 		size_t tokenBufferPos = 0;
 		size_t tokenBufferLen = 0;
-		if (auto tokenBufferPosOpt = findSub(line, tokenBuffer))
+		
+		std::string line;
+		std::stringstream ss(buffer);
+		while (std::getline(ss, line))
 		{
-			tokenBufferPos = tokenBufferPosOpt.value();
-			tokenBufferLen = tokenBuffer.size();
+			std::cerr << "| " << line << std::endl;
+
+			if (auto tokenBufferPosOpt = findSub(line, tokenBuffer))
+			{
+				tokenBufferPos = tokenBufferPosOpt.value();
+				tokenBufferLen = tokenBuffer.size();
+			}
 		}
+		
 		std::string err1;
 		err1 += std::string(tokenBufferPos, ' ');
 		err1 += std::string(tokenBufferLen, '^');
 		err1 += " ";
 		err1 += message;
 
+		std::cerr << "| " << err1 << std::endl;
+		
 		std::string err2;
 		err2 += std::string(tokenBufferPos, ' ');
 		err2 += "| Got '";
 		err2 += tokenBuffer;
 		err2 += "'";
 
-		std::cerr << "| " << err1 << std::endl;
 		std::cerr << "| " << err2 << std::endl;
 	}
 

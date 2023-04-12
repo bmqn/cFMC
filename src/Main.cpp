@@ -71,22 +71,22 @@ main  = ([5] . [2] . Pair . <@p> . [#p] . snd . print . [#p] . fst . print)
 
 std::string ex41 = R"(
 write = (
-	<@a> . <x> . [x]a
+    <@a> . <x> . []a
 )
 
 print = (
-	[#out] . write
+    [#out] . write
 )
 
 LinkedList = (
-	<v> . new<@p> . [#null]p . [v]p . [#p]
+    <v> . new<@p> . [#null]p . [v]p . [#p]
 )
 
 push_back = (
-	<v> . <@p> . p<pv> . p<@pp> . [#pp] . (
-		null      -> [v] . LinkedList . <@npp> . [#npp]p . [pv]p,
-		otherwise -> [#pp]p . [pv]p . [#pp] . [v] . push_back
-	)
+    <v> . <@p> . p<pv> . p<@pp> . [#pp] . (
+        null      -> [v] . LinkedList . <@npp> . [#npp]p . [pv]p,
+        otherwise -> [#pp]p . [pv]p . [#pp] . [v] . push_back
+    )
 )
 
 traverse = (
@@ -117,18 +117,18 @@ main = (
 
 static std::string readFile(const std::string &path)
 {
-	std::ifstream ifs(path);
-	std::stringstream buffer;
-	buffer << ifs.rdbuf();
+    std::ifstream ifs(path);
+    std::stringstream buffer;
+    buffer << ifs.rdbuf();
 
-	return buffer.str();
+    return buffer.str();
 }
 
 int main()
 {
-	Parser parser;
-	Machine machine;
-	machine.execute(parser.parseProgram(ex41)); // <-- Change example here !
+    Parser parser;
+    Machine machine;
+    machine.execute(parser.parseProgram(ex41)); // <-- Change example here !
 
-	return 0;
+    return 0;
 }
