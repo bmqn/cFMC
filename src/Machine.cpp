@@ -529,8 +529,71 @@ void Machine::execute(const Program &program)
 		}
 		else if (term->isVal())
 		{
-			machineError("Value term is being executed by machine ! Perhaps something wasn't pushed to the stack !", *this
-			);
+			machineError("Value term is being executed by machine ! Perhaps something wasn't pushed to the stack !", *this);
+		}
+		else if (term->isBinOp())
+		{
+			const BinOpTerm &op = term->asBinOp();
+			TermHandle_t toPush;
+			TermHandle_t toPop1;
+			TermHandle_t toPop2;
+
+			if (!m_Stacks[Loc_t(k_LambdaLoc)].empty())
+			{
+				toPop1 = m_Stacks[k_LambdaLoc].back();
+				m_Stacks[Loc_t(k_LambdaLoc)].pop_back();
+			}
+			else
+			{
+				machineError("Binary operation is attempting to pop from empty stack !", *this);
+			}
+
+			if (!m_Stacks[Loc_t(k_LambdaLoc)].empty())
+			{
+				toPop2 = m_Stacks[k_LambdaLoc].back();
+				m_Stacks[Loc_t(k_LambdaLoc)].pop_back();
+			}
+			else
+			{
+				machineError("Binary operation is attempting to pop from empty stack !", *this);
+			}
+
+			if (toPop1->isVal())
+			{
+				if (toPop2->isVal())
+				{
+					const ValTerm &val1 = toPop1->asVal();
+					const ValTerm &val2 = toPop2->asVal();
+					auto prim1 = val1.asPrim();
+					auto prim2 = val2.asPrim();
+					
+					if (op.isOp(BinOpTerm::Plus))
+					{
+						toPush = freshTerm(ValTerm(prim2 + prim1));
+					}
+					else if (op.isOp(BinOpTerm::Minus))
+					{
+						toPush = freshTerm(ValTerm(prim2 - prim1));
+					}
+				}
+				else
+				{
+					machineError("Binary operation is attempting to use a non-value as second popped term !", *this);
+				}
+			}
+			else
+			{
+				machineError("Binary operation is attempting to use a non-value as first popped value !", *this);
+			}
+
+			// Push to the stack
+			m_Stacks[k_LambdaLoc].push_back(toPush);
+
+			// Update binding context of argument term
+			m_VarBindCtx[toPush] = boundVars;
+
+			// Push continuation term to frame
+			m_Frame.push_back(std::make_pair(op.getBody(), std::make_pair(boundVars, boundLocVars)));
 		}
 		else if (term->isLocCases())
 		{

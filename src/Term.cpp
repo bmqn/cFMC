@@ -180,6 +180,26 @@ TermHandle_t CasesTerm<Case_t>::getBody() const
 	return m_Body;
 }
 
+BinOpTerm::BinOpTerm(BinOpTerm::Op op)
+	: m_Op(op)
+	, m_Body(newTerm(NilTerm()))
+{}
+
+BinOpTerm::BinOpTerm(BinOpTerm::Op op, Term &&body)
+	: m_Op(op)
+	, m_Body(newTerm(std::move(body)))
+{}
+
+bool BinOpTerm::isOp(BinOpTerm::Op op) const
+{
+	return m_Op == op;
+}
+
+TermHandle_t BinOpTerm::getBody() const
+{
+	return m_Body;
+}
+
 template<typename Case_t>
 typename CasesTerm<Case_t>::Cases_t::const_iterator CasesTerm<Case_t>::find(const Case_t &c) const
 {
@@ -232,6 +252,10 @@ Term::Term(ValTerm &&term)
 	: m_Term(std::move(term))
 {}
 
+Term::Term(BinOpTerm &&term)
+	: m_Term(std::move(term))
+{}
+
 Term::Term(CasesTerm<Loc_t> &&term)
 	: m_Term(std::move(term))
 {}
@@ -269,6 +293,11 @@ bool Term::isLocApp() const
 bool Term::isVal() const
 {
 	return std::holds_alternative<ValTerm>(m_Term);
+}
+
+bool Term::isBinOp() const
+{
+	return std::holds_alternative<BinOpTerm>(m_Term);
 }
 
 bool Term::isLocCases() const
@@ -309,6 +338,11 @@ const LocAppTerm &Term::asLocApp() const
 const ValTerm &Term::asVal() const
 {
 	return std::get<ValTerm>(m_Term);
+}
+
+const BinOpTerm &Term::asBinOp() const
+{
+	return std::get<BinOpTerm>(m_Term);
 }
 
 const CasesTerm<Loc_t> &Term::asLocCases() const

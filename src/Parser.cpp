@@ -166,6 +166,10 @@ std::optional<Term> Parser::parseTerm()
 	{
 		return Term(std::move(valOpt.value()));
 	}
+	else if (auto binOpOpt = parseBinOp())
+	{
+		return Term(std::move(binOpOpt.value()));
+	}
 	// else if (auto primCasesOpt = parsePrimCases())
 	// {
 	// 	return Term(std::move(primCasesOpt.value()));
@@ -482,6 +486,47 @@ std::optional<ValTerm> Parser::parseVal()
 				prim
 			);
 		}
+	}
+
+	return std::nullopt;
+}
+
+std::optional<BinOpTerm> Parser::parseBinOp()
+{
+	if (m_Lexer->isPeekToken(Token::Plus) ||
+		m_Lexer->isPeekToken(Token::Minus))
+	{
+		BinOpTerm::Op op;
+		if (m_Lexer->isPeekToken(Token::Plus))
+		{
+			op = BinOpTerm::Plus;
+		}
+		else if (m_Lexer->isPeekToken(Token::Minus))
+		{
+			op = BinOpTerm::Minus;
+		}
+
+		m_Lexer->next();
+
+		if (m_Lexer->isPeekToken(Token::Dot))
+		{
+			m_Lexer->next();
+
+			if (auto bodyOpt = parseTerm())
+			{
+				return BinOpTerm(
+					op, std::move(bodyOpt.value())
+				);
+			}
+			else
+			{
+				parseError("Expected term after binary operation", *m_Lexer);
+			}
+		}
+
+		return BinOpTerm(
+			op
+		);
 	}
 
 	return std::nullopt;

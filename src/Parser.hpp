@@ -31,6 +31,7 @@ private:
 	std::optional<LocAppTerm> parseLocApp();
 
 	std::optional<ValTerm> parseVal();
+	std::optional<BinOpTerm> parseBinOp();
 	// std::optional<std::pair<Prim_t, Term>> parsePrimCase();
 	std::optional<std::pair<Loc_t, Term>> parseLocCase();
 	// std::optional<CasesTerm<Prim_t>> parsePrimCases();

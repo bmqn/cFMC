@@ -20,6 +20,8 @@ enum class Token
 	Underscore, // _
 	Ampersand, // @
 	Hash, // #
+	Plus, // +
+	Minus, // -
 
 	Arrow, // ->
 

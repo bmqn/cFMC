@@ -156,8 +156,8 @@ public:
 	using Cases_t = std::map<Case_t, TermOwner_t>;
 
 public:
-	CasesTerm(const CasesTerm &cases) = delete;
-	CasesTerm(CasesTerm &&cases) = default;
+	CasesTerm(const CasesTerm &term) = delete;
+	CasesTerm(CasesTerm &&term) = default;
 
 	CasesTerm(Cases_t &&cases, Term &&body);
 	CasesTerm(Cases_t &&cases);
@@ -176,6 +176,32 @@ private:
 	TermOwner_t m_Body;
 };
 
+class BinOpTerm
+{
+public:
+	enum Op
+	{
+		Plus, Minus
+	};
+public:
+	BinOpTerm(const BinOpTerm &term) = delete;
+	BinOpTerm(BinOpTerm &&term) = default;
+
+	BinOpTerm(Op op);
+	BinOpTerm(Op op, Term &&body);
+
+	BinOpTerm &operator=(const BinOpTerm &term) = delete;
+	BinOpTerm &operator=(BinOpTerm &&term) = delete;
+
+	bool isOp(Op op) const;
+
+	TermHandle_t getBody() const;
+
+private:
+	Op m_Op;
+	TermOwner_t m_Body;
+};
+
 class Term
 {
 public:
@@ -191,6 +217,7 @@ public:
 	Term(LocAppTerm &&term);
 
 	Term(ValTerm &&term);
+	Term(BinOpTerm &&term);
 	Term(CasesTerm<Loc_t> &&term);
 
 	Term &operator=(const Term &term) = delete;
@@ -204,6 +231,7 @@ public:
 	bool isLocApp() const;
 
 	bool isVal() const;
+	bool isBinOp() const;
 	bool isLocCases() const;
 
 	const NilTerm &asNil() const;
@@ -214,11 +242,12 @@ public:
 	const LocAppTerm &asLocApp() const;
 	
 	const ValTerm &asVal() const;
+	const BinOpTerm &asBinOp() const;
 	const CasesTerm<Loc_t> &asLocCases() const;
 
 private:
 	std::variant<
 		NilTerm, VarTerm, AbsTerm, AppTerm, LocAbsTerm, LocAppTerm, /* FCL-FMC    */
-		ValTerm, CasesTerm<Loc_t>									/* Extensions */ 
+		ValTerm, BinOpTerm, CasesTerm<Loc_t>                    /* Extensions */ 
 	> m_Term;
 };

@@ -181,6 +181,10 @@ std::optional<std::pair<Token, std::string>> Lexer::advance()
 	{
 		return std::make_pair(Token::Hash, buffer);
 	}
+	else if (c == '+')
+	{
+		return std::make_pair(Token::Plus, buffer);
+	}
 	else if (c == '-')
 	{
 		c = m_Stream->get();
@@ -195,6 +199,8 @@ std::optional<std::pair<Token, std::string>> Lexer::advance()
 		m_Stream->putback(c);
 		m_CurrCharIdx--;
 		m_Buffer.pop_back();
+
+		return std::make_pair(Token::Minus, buffer);
 	}
 	else if (std::isalpha(c))
 	{
