@@ -97,13 +97,26 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 			const ValTerm &val = term->asVal();
 			if (val.isPrim())
 			{
-				ss << static_cast<uint32_t>(val.asPrim());
+				ss << val.asPrim();
 			}
 			else if (val.isLoc())
 			{
-				ss << "#" << std::string(val.asLoc());
+				ss << "#" << val.asLoc();
 			}
 			term = nullptr;
+		}
+		else if (term->isBinOp())
+		{
+			const BinOpTerm &binOp = term->asBinOp();
+			if (binOp.isOp(BinOpTerm::Plus))
+			{
+				ss << "+";
+			}
+			else if (binOp.isOp(BinOpTerm::Minus))
+			{
+				ss << "-";
+			}
+			term = binOp.getBody();
 		}
 		else if (term->isLocCases())
 		{

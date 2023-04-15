@@ -8,7 +8,7 @@ using Var_t = std::string;
 using LocVar_t = std::string;
 
 using Loc_t = std::string;
-using Prim_t = uint8_t;
+using Prim_t = int32_t;
 
 const Loc_t k_LambdaLoc = "lambda";
 const Loc_t k_NewLoc     = "new";

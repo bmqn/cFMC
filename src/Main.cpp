@@ -63,20 +63,17 @@ main  = (new<@a> . [5]a . new<@b> . [2]b . [#a] . get . print . [#b] . get . pri
 std::string ex40 = R"(
 write = (<@a> . <x> . [x]a)
 print = ([#out] . write)
+
 Pair  = (<y> . <x> . new<@p> . [y]p . [x]p . [#p])
 fst   = (<@p> . p<x> . [x]p . [x])
 snd   = (<@p> . p<x> . p<y> . [y]p . [x]p . [y])
+
 main  = ([5] . [2] . Pair . <@p> . [#p] . snd . print . [#p] . fst . print)
 )";
 
 std::string ex41 = R"(
-write = (
-    <@a> . <x> . []a
-)
-
-print = (
-    [#out] . write
-)
+write = (<@a> . <x> . [x]a)
+print = ([#out] . write)
 
 LinkedList = (
     <v> . new<@p> . [#null]p . [v]p . [#p]
@@ -114,7 +111,6 @@ main = (
 )
 )";
 
-
 static std::string readFile(const std::string &path)
 {
     std::ifstream ifs(path);
@@ -124,11 +120,21 @@ static std::string readFile(const std::string &path)
     return buffer.str();
 }
 
-int main()
+int main(int argc, char **argv)
 {
+    std::optional<std::string> exOpt;
+    if (argc == 2)
+    {
+        std::string path = argv[1];
+        exOpt = readFile(path);
+    }
+
+    const std::string &ex = exOpt.value_or(ex41);
+    // ............... Change example here ^^^^ !
+
     Parser parser;
     Machine machine;
-    machine.execute(parser.parseProgram(ex41)); // <-- Change example here !
+    machine.execute(parser.parseProgram(ex));
 
     return 0;
 }

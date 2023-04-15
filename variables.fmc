@@ -1,0 +1,14 @@
+get = (<@a> . a<x> . [x]a . [x])
+set = (<@a> . <x> . a<_> . [x]a)
+
+write = (<@a> . <x> . [x]a)
+print = ([#out] . write)
+
+main = (
+    new<@a> . [5]a .
+    new<@b> . [7]b .
+    new<@c> . [#a] . get . [#b] . get . + . <z> . [z]c .
+    [#a] . get . print .
+    [#b] . get . print .
+    [#c] . get . print
+)

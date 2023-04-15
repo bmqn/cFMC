@@ -533,7 +533,7 @@ void Machine::execute(const Program &program)
 		}
 		else if (term->isBinOp())
 		{
-			const BinOpTerm &op = term->asBinOp();
+			const BinOpTerm &binOp = term->asBinOp();
 			TermHandle_t toPush;
 			TermHandle_t toPop1;
 			TermHandle_t toPop2;
@@ -567,11 +567,11 @@ void Machine::execute(const Program &program)
 					auto prim1 = val1.asPrim();
 					auto prim2 = val2.asPrim();
 					
-					if (op.isOp(BinOpTerm::Plus))
+					if (binOp.isOp(BinOpTerm::Plus))
 					{
 						toPush = freshTerm(ValTerm(prim2 + prim1));
 					}
-					else if (op.isOp(BinOpTerm::Minus))
+					else if (binOp.isOp(BinOpTerm::Minus))
 					{
 						toPush = freshTerm(ValTerm(prim2 - prim1));
 					}
@@ -593,7 +593,7 @@ void Machine::execute(const Program &program)
 			m_VarBindCtx[toPush] = boundVars;
 
 			// Push continuation term to frame
-			m_Frame.push_back(std::make_pair(op.getBody(), std::make_pair(boundVars, boundLocVars)));
+			m_Frame.push_back(std::make_pair(binOp.getBody(), std::make_pair(boundVars, boundLocVars)));
 		}
 		else if (term->isLocCases())
 		{
