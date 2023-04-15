@@ -193,6 +193,8 @@ std::optional<std::pair<Token, std::string>> Lexer::advance()
 
 		if (c == '>')
 		{
+			buffer += c;
+
 			return std::make_pair(Token::Arrow, buffer);
 		}
 
@@ -232,9 +234,12 @@ std::optional<std::pair<Token, std::string>> Lexer::advance()
 		while (std::isdigit(c))
 		{
 			buffer += c;
+
 			c = m_Stream->get();
 			m_CurrCharIdx++;
+			m_Buffer += c;
 		}
+		
 		m_Stream->putback(c);
 		m_CurrCharIdx--;
 		m_Buffer.pop_back();
