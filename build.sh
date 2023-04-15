@@ -7,5 +7,4 @@ SRC_FILES="src/Main.cpp src/Lexer.cpp src/Term.cpp src/Parser.cpp src/Program.cp
 echo 'Compiling...'
 c++ -std=c++20 -g -o build/cfmc $SRC_FILES
 
-echo 'Running...'
-stdbuf -oL ./build/cfmc
+echo 'Done...!'

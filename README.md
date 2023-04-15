@@ -59,10 +59,16 @@ main = (
 
 # Running
 
+The program accepts a source code file as its first and only command line argument. For example, running `fib.fmc` would look like.
+
+```
+cfmc fib.fmc
+```
+
 ### macOS & Linux
 
-Execute the included shell script `run.sh` to compile and run the program. This will generate the binary `cfmc` in the directory `build/` and execute it.
+Execute the included shell script `build.sh` to compile the program. This will generate the binary `cfmc` in the directory `build/`.
 
 ### Windows
 
-Execute the included batch script `run.bat` to compile and run the program. This will generate the binary `cfmc.exe` in the directory `build/` and execute it. It will work if executed from the VS Developer Command Prompt. Alternatively, just use WSL !
+Execute the included batch script `build.bat` to compile the program. This will generate the binary `cfmc.exe` in the directory `build/`. It will work if executed from the VS Developer Command Prompt. Alternatively, just use WSL !
