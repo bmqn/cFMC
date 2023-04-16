@@ -59,10 +59,16 @@ main = (
 
 # Running
 
-The program accepts a source code file as its first and only command line argument. For example, running `fib.fmc` would look like.
+The program accepts a source file as its final command line argument. For example, running `fib.fmc` would look like.
 
 ```
 cfmc fib.fmc
+```
+
+You can optionally specify `--debug` to display the state of the stack after running the machine.
+
+```
+cfmc --debug fib.fmc
 ```
 
 ### macOS & Linux

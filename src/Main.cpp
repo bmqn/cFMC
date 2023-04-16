@@ -58,83 +58,74 @@ print = ([#out] . write)
 main  = (new<@a> . [5]a . new<@b> . [2]b . [#a] . get . print . [#b] . get . print)
 )";
 
-// -- Data structures
 
-std::string ex40 = R"(
-write = (<@a> . <x> . [x]a)
-print = ([#out] . write)
-
-Pair  = (<y> . <x> . new<@p> . [y]p . [x]p . [#p])
-fst   = (<@p> . p<x> . [x]p . [x])
-snd   = (<@p> . p<x> . p<y> . [y]p . [x]p . [y])
-
-main  = ([5] . [2] . Pair . <@p> . [#p] . snd . print . [#p] . fst . print)
-)";
-
-std::string ex41 = R"(
-write = (<@a> . <x> . [x]a)
-print = ([#out] . write)
-
-LinkedList = (
-    <v> . new<@p> . [#null]p . [v]p . [#p]
-)
-
-push_back = (
-    <v> . <@p> . p<pv> . p<@pp> . [#pp] . (
-        null      -> [v] . LinkedList . <@npp> . [#npp]p . [pv]p,
-        otherwise -> [#pp]p . [pv]p . [#pp] . [v] . push_back
-    )
-)
-
-traverse = (
-    <f> . <@p> . p<pv> . p<@pp> . [#pp]p . [pv]p . [#pp] . (
-        null      -> [pv] . f,
-        otherwise -> [pv] . f . [#pp] . [f] . traverse
-    )
-)
-
-rtraverse = (
-    <f> . <@p> . p<pv> . p<@pp> . [#pp]p . [pv]p . [#pp] . (
-        null      -> [pv] . f,
-        otherwise -> [pv] . [#pp] . [f] . rtraverse . f
-    )
-)
-
-main = (
-    [1] . LinkedList . <@p>
-    . [#p] . [2] . push_back
-    . [#p] . [3] . push_back
-    . [#p] . [4] . push_back
-    . [#p] . [5] . push_back
-    . [#p] . [print] . traverse
-    . [#p] . [print] . rtraverse
-)
-)";
-
-static std::string readFile(const std::string &path)
+static std::optional<std::string> readFile(const std::string &path)
 {
     std::ifstream ifs(path);
+
+    if (!ifs.is_open())
+    {
+        return std::nullopt;
+    }
+
     std::stringstream buffer;
     buffer << ifs.rdbuf();
-
     return buffer.str();
 }
 
 int main(int argc, char **argv)
 {
     std::optional<std::string> exOpt;
-    if (argc == 2)
+    bool showDebug = false;
+
+    for (int i = 1; i < argc; ++i)
     {
-        std::string path = argv[1];
-        exOpt = readFile(path);
+        std::string arg = argv[i];
+        
+        if (i < argc - 1)
+        {
+            if (arg == "--debug")
+            {
+                showDebug = true;
+            }
+        }
+        else if (i == argc - 1)
+        {
+            if (auto textOpt = readFile(arg))
+            {
+                exOpt = textOpt.value();
+            }
+            else
+            {
+                std::cerr << "File '" << arg << "' could not be read... ";
+                std::cerr << "Please provide a valid file." << std::endl;
+                std::cerr << "Usage: cfmc [--debug] <file>" << std::endl;
+                return 1;
+            }
+        }
     }
 
-    const std::string &ex = exOpt.value_or(ex41);
-    // ............... Change example here ^^^^ !
+    if (exOpt)
+    {
+        const std::string &ex = exOpt.value();
 
-    Parser parser;
-    Machine machine;
-    machine.execute(parser.parseProgram(ex));
+        Parser parser;
+        Machine machine;
+        machine.execute(parser.parseProgram(ex));
+        
+        if (showDebug)
+        {
+            std::cout << std::endl;
+            std::cout << machine.getStackDebug();
+            std::cout << std::endl;
+        }
 
-    return 0;
+        return 0;
+    }
+    else
+    {
+        std::cerr << "Please provide a file." << std::endl;
+        std::cerr << "Usage: cfmc [--debug] <file>" << std::endl;
+        return 1;
+    }
 }

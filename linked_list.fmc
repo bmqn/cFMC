@@ -1,0 +1,37 @@
+write = (<@a> . <x> . [x]a)
+print = ([#out] . write)
+
+LinkedList = (
+    <v> . new<@p> . [#null]p . [v]p . [#p]
+)
+
+push_back = (
+    <v> . <@p> . p<pv> . p<@pp> . [#pp] . (
+        null      -> [v] . LinkedList . <@npp> . [#npp]p . [pv]p,
+        otherwise -> [#pp]p . [pv]p . [#pp] . [v] . push_back
+    )
+)
+
+traverse = (
+    <f> . <@p> . p<pv> . p<@pp> . [#pp]p . [pv]p . [#pp] . (
+        null      -> [pv] . f,
+        otherwise -> [pv] . f . [#pp] . [f] . traverse
+    )
+)
+
+rtraverse = (
+    <f> . <@p> . p<pv> . p<@pp> . [#pp]p . [pv]p . [#pp] . (
+        null      -> [pv] . f,
+        otherwise -> [pv] . [#pp] . [f] . rtraverse . f
+    )
+)
+
+main = (
+    [1] . LinkedList . <@p>
+    . [#p] . [2] . push_back
+    . [#p] . [3] . push_back
+    . [#p] . [4] . push_back
+    . [#p] . [5] . push_back
+    . [#p] . [print] . traverse
+    . [#p] . [print] . rtraverse
+)

@@ -2,7 +2,7 @@ write = (<@a> . <x> . [x]a)
 print = ([#out] . write)
 
 fib_aux = (
-    <b> . <a> . [a] . [b] . [a] . [b] . + . [a] . print . fib_aux
+    <b> . <a> . [a] . [b] . [a] . [b] . + . [a] . print . [a] . fib_aux
 )
 
 fib = (
