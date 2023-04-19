@@ -248,37 +248,11 @@ void Machine::execute(const Program &program)
 				{
 					toPush = itBound->second;
 				}
-				else
+				else if (!program.load(var.getVar()))
 				{
-					if (var.getVar() == k_LambdaLoc)
-					{
-						toPush = freshTerm(ValTerm(k_LambdaLoc));
-					}
-					else if (var.getVar() == k_NewLoc)
-					{
-						toPush = freshTerm(ValTerm(k_NewLoc));
-					}
-					else if (var.getVar() == k_InputLoc)
-					{
-						toPush = freshTerm(ValTerm(k_InputLoc));
-					}
-					else if (var.getVar() == k_OutputLoc)
-					{
-						toPush = freshTerm(ValTerm(k_OutputLoc));
-					}
-					else if (var.getVar() == k_NullLoc)
-					{
-						toPush = freshTerm(ValTerm(k_NullLoc));
-					}
-					else
-					{
-						if (!program.load(var.getVar()))
-						{
-							machineError("Application argument '" + var.getVar() + "' "
-								+ "is not bound to anything !", *this
-							);
-						}
-					}
+					machineError("Application argument '" + var.getVar() + "' "
+						+ "is not bound to anything !", *this
+					);
 				}
 			}
 

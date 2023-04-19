@@ -58,74 +58,106 @@ print = ([#out] . write)
 main  = (new<@a> . [5]a . new<@b> . [2]b . [#a] . get . print . [#b] . get . print)
 )";
 
+struct Args
+{
+	std::string Source;
+	bool Debug = false;
+};
 
 static std::optional<std::string> readFile(const std::string &path)
 {
-    std::ifstream ifs(path);
+	std::ifstream ifs(path);
 
-    if (!ifs.is_open())
-    {
-        return std::nullopt;
-    }
+	if (!ifs.is_open())
+	{
+		return std::nullopt;
+	}
 
-    std::stringstream buffer;
-    buffer << ifs.rdbuf();
-    return buffer.str();
+	std::stringstream buffer;
+	buffer << ifs.rdbuf();
+	return buffer.str();
+}
+
+static Args parseArgs(int argc, char **argv)
+{
+	Args args;
+	bool isSrcSpecified = false;
+
+	auto fail = [](std::string msg) {
+		std::cerr << msg << std::endl;
+		std::cerr << "Usage: cfmc [--help] [--debug] [--file path] [--source src]" << std::endl;
+		std::exit(1);
+	};
+
+	for (int i = 1; i < argc; ++i)
+	{
+		std::string arg = argv[i];
+		
+		if (arg == "--help")
+		{
+			fail("Parses & interprets programs written in the cFMC !");
+		}
+		else if (arg == "--debug")
+		{
+			args.Debug = true;
+		}
+		if (arg == "--file")
+		{
+			if (i + 1 < argc)
+			{
+				std::string path = argv[i + 1];
+				if (auto sourceOpt = readFile(path))
+				{
+					args.Source = sourceOpt.value();
+					isSrcSpecified = true;
+				}
+				else
+				{
+					fail("File '" + path + "' could not be read... "
+						"Please provide a valid file."
+					);
+				}
+			}
+			else
+			{
+				fail("Expected path after '--file'.");
+			}
+		}
+		else if (arg == "--source")
+		{
+			if (i + 1 < argc)
+			{
+				std::string source = argv[i + 1];
+				args.Source = source;
+				isSrcSpecified = true;
+			}
+			else
+			{
+				fail("Expected term after '--source'.");
+			}
+		}
+	}
+
+	if (!isSrcSpecified)
+	{
+		fail("No file or source is specified.");
+	}
+
+	return args;
 }
 
 int main(int argc, char **argv)
 {
-    std::optional<std::string> exOpt;
-    bool showDebug = false;
+	auto args = parseArgs(argc, argv);
 
-    for (int i = 1; i < argc; ++i)
-    {
-        std::string arg = argv[i];
-        
-        if (i < argc - 1)
-        {
-            if (arg == "--debug")
-            {
-                showDebug = true;
-            }
-        }
-        else if (i == argc - 1)
-        {
-            if (auto textOpt = readFile(arg))
-            {
-                exOpt = textOpt.value();
-            }
-            else
-            {
-                std::cerr << "File '" << arg << "' could not be read... ";
-                std::cerr << "Please provide a valid file." << std::endl;
-                std::cerr << "Usage: cfmc [--debug] <file>" << std::endl;
-                return 1;
-            }
-        }
-    }
-
-    if (exOpt)
-    {
-        const std::string &ex = exOpt.value();
-
-        Parser parser;
-        Machine machine;
-        machine.execute(parser.parseProgram(ex));
-        
-        if (showDebug)
-        {
-            std::cout << std::endl;
-            std::cout << machine.getStackDebug();
-            std::cout << std::endl;
-        }
-
-        return 0;
-    }
-    else
-    {
-        std::cerr << "Please provide a file." << std::endl;
-        std::cerr << "Usage: cfmc [--debug] <file>" << std::endl;
-        return 1;
-    }
+	Parser parser;
+	Machine machine;
+	machine.execute(parser.parseProgram(args.Source));
+	
+	if (args.Debug)
+	{
+		std::cout << std::endl;
+		std::cout << machine.getStackDebug();
+		std::cout << std::endl;
+	}
 }
