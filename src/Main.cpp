@@ -85,7 +85,7 @@ static Args parseArgs(int argc, char **argv)
 
 	auto fail = [](std::string msg) {
 		std::cerr << msg << std::endl;
-		std::cerr << "Usage: cfmc [--help] [--debug] [--file path] [--source src]" << std::endl;
+		std::cerr << "Usage: cfmc [--help] [--debug] [--file path | --source src]" << std::endl;
 		std::exit(1);
 	};
 
@@ -101,7 +101,7 @@ static Args parseArgs(int argc, char **argv)
 		{
 			args.Debug = true;
 		}
-		if (arg == "--file")
+		if (arg == "--file" && !isSrcSpecified)
 		{
 			if (i + 1 < argc)
 			{
@@ -123,7 +123,7 @@ static Args parseArgs(int argc, char **argv)
 				fail("Expected path after '--file'.");
 			}
 		}
-		else if (arg == "--source")
+		else if (arg == "--source" && !isSrcSpecified)
 		{
 			if (i + 1 < argc)
 			{

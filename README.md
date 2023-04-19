@@ -59,16 +59,28 @@ main = (
 
 # Running
 
-The program accepts a source file as its final command line argument. For example, running `fib.fmc` would look like.
+The program must take a file (containing the program source) or program source directly (but not both). These are given with the options `--file path` or `--source src`.
+
+```
+Usage: cfmc [--help] [--debug] [--file path | --source src]
+```
+
+For example, running the program in `fib.fmc` would look like.
 
 ```
 cfmc fib.fmc
 ```
 
+For example, running the program `main = ([in<x> . [x]out] . <echo> . echo)` would look like.
+
+```
+cfmc --source 'main = ([in<x> . [x]out] . <echo> . echo)'
+```
+
 You can optionally specify `--debug` to display the state of the stack after running the machine.
 
 ```
-cfmc --debug fib.fmc
+cfmc --debug --file fib.fmc
 ```
 
 ### macOS & Linux
