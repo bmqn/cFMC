@@ -162,24 +162,6 @@ Loc_t ValTerm::asLoc() const
 	return std::get<Loc_t>(m_Val);
 }
 
-template<typename Case_t>
-CasesTerm<Case_t>::CasesTerm(CasesTerm<Case_t>::Cases_t &&cases, Term &&body)
-	: m_Cases(std::move(cases))
-	, m_Body(newTerm(std::move(body)))
-{}
-
-template<typename Case_t>
-CasesTerm<Case_t>::CasesTerm(CasesTerm<Case_t>::Cases_t &&cases)
-	: m_Cases(std::move(cases))
-	, m_Body(newTerm(NilTerm()))
-{}
-
-template<typename Case_t>
-TermHandle_t CasesTerm<Case_t>::getBody() const
-{
-	return m_Body;
-}
-
 BinOpTerm::BinOpTerm(BinOpTerm::Op op)
 	: m_Op(op)
 	, m_Body(newTerm(NilTerm()))
@@ -201,6 +183,26 @@ TermHandle_t BinOpTerm::getBody() const
 }
 
 template<typename Case_t>
+CasesTerm<Case_t>::CasesTerm(CasesTerm<Case_t>::Cases_t &&cases, TermOwner_t &&otherwise, Term &&body)
+	: m_Cases(std::move(cases))
+	, m_OtherwiseCase(std::move(otherwise))
+	, m_Body(newTerm(std::move(body)))
+{}
+
+template<typename Case_t>
+CasesTerm<Case_t>::CasesTerm(CasesTerm<Case_t>::Cases_t &&cases, TermOwner_t &&otherwise)
+	: m_Cases(std::move(cases))
+	, m_OtherwiseCase(std::move(otherwise))
+	, m_Body(newTerm(NilTerm()))
+{}
+
+template<typename Case_t>
+TermHandle_t CasesTerm<Case_t>::getOtherwise() const
+{
+	return m_OtherwiseCase;
+}
+
+template<typename Case_t>
 typename CasesTerm<Case_t>::Cases_t::const_iterator CasesTerm<Case_t>::find(const Case_t &c) const
 {
 	return m_Cases.find(c);
@@ -218,6 +220,13 @@ typename CasesTerm<Case_t>::Cases_t::const_iterator CasesTerm<Case_t>::end() con
 	return m_Cases.end();
 }
 
+template<typename Case_t>
+TermHandle_t CasesTerm<Case_t>::getBody() const
+{
+	return m_Body;
+}
+
+template class CasesTerm<Prim_t>;
 template class CasesTerm<Loc_t>;
 
 Term::Term()
@@ -253,6 +262,10 @@ Term::Term(ValTerm &&term)
 {}
 
 Term::Term(BinOpTerm &&term)
+	: m_Term(std::move(term))
+{}
+
+Term::Term(CasesTerm<Prim_t> &&term)
 	: m_Term(std::move(term))
 {}
 
@@ -300,6 +313,11 @@ bool Term::isBinOp() const
 	return std::holds_alternative<BinOpTerm>(m_Term);
 }
 
+bool Term::isPrimCases() const
+{
+	return std::holds_alternative<CasesTerm<Prim_t>>(m_Term);
+}
+
 bool Term::isLocCases() const
 {
 	return std::holds_alternative<CasesTerm<Loc_t>>(m_Term);
@@ -343,6 +361,11 @@ const ValTerm &Term::asVal() const
 const BinOpTerm &Term::asBinOp() const
 {
 	return std::get<BinOpTerm>(m_Term);
+}
+
+const CasesTerm<Prim_t> &Term::asPrimCases() const
+{
+	return std::get<CasesTerm<Prim_t>>(m_Term);
 }
 
 const CasesTerm<Loc_t> &Term::asLocCases() const

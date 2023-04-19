@@ -123,7 +123,7 @@ void Machine::execute(const Program &program)
 				{
 					// Push bound term and its binding context to frame
 					m_Frame.push_back({itBoundVars->second, {itVarBindCtx->second, boundLocVars}});
-					m_CallStack.push_back({"Bining '" + var.getVar() + "'", itBoundVars->second});
+					m_CallStack.push_back({"Binding of '" + var.getVar() + "'", itBoundVars->second});
 				}
 				else
 				{
@@ -569,6 +569,54 @@ void Machine::execute(const Program &program)
 			// Push continuation term to frame
 			m_Frame.push_back(std::make_pair(binOp.getBody(), std::make_pair(boundVars, boundLocVars)));
 		}
+		else if (term->isPrimCases())
+		{
+			const CasesTerm<Prim_t> &cases = term->asPrimCases();
+			TermHandle_t toPop;
+
+			// Push continuation term to frame
+			m_Frame.push_back(std::make_pair(cases.getBody(), std::make_pair(boundVars, boundLocVars)));
+
+			if (!m_Stacks[Loc_t(k_LambdaLoc)].empty())
+			{
+				toPop = m_Stacks[k_LambdaLoc].back();
+				m_Stacks[Loc_t(k_LambdaLoc)].pop_back();
+			}
+			else
+			{
+				machineError("Cases is attempting to match from empty stack !", *this);
+			}
+
+			if (toPop->isVal())
+			{
+				const ValTerm &val = toPop->asVal();
+
+				if (val.isPrim())
+				{
+					auto itCase = cases.find(val.asPrim());
+					if (itCase != cases.end())
+					{
+						// Push case term and the global binding context to frame
+						m_Frame.push_back(std::make_pair(itCase->second, std::make_pair(boundVars, boundLocVars)));
+						m_CallStack.push_back({"Case '" + std::to_string(val.asPrim()) + "'", itCase->second});
+					}
+					else
+					{
+						// Push case term and the global binding context to frame
+						m_Frame.push_back({cases.getOtherwise(), {boundVars, boundLocVars}});
+						m_CallStack.push_back({"Case 'otherwise'", cases.getOtherwise()});
+					}
+				}
+				else if (val.isLoc())
+				{
+					machineError("Cases expect a primitive value instead of a location !", *this);
+				}
+			}
+			else
+			{
+				machineError("Cases is attemping to match a non-value !", *this);
+			}
+		}
 		else if (term->isLocCases())
 		{
 			const CasesTerm<Loc_t> &cases = term->asLocCases();
@@ -593,7 +641,7 @@ void Machine::execute(const Program &program)
 
 				if (val.isPrim())
 				{
-					machineError("Cases are not implemented for primitives !", *this);
+					machineError("Cases expect a location value instead of a primitive !", *this);
 				}
 				else if (val.isLoc())
 				{
@@ -606,17 +654,9 @@ void Machine::execute(const Program &program)
 					}
 					else
 					{
-						itCase = cases.find("otherwise");
-						if (itCase != cases.end())
-						{
-							// Push case term and the global binding context to frame
-							m_Frame.push_back({itCase->second, {boundVars, boundLocVars}});
-							m_CallStack.push_back({"Case 'otherwise'", itCase->second});
-						}
-						else
-						{
-							machineError("Cases could not match value and did not have an 'otherwise' pattern !", *this);
-						}
+						// Push case term and the global binding context to frame
+						m_Frame.push_back({cases.getOtherwise(), {boundVars, boundLocVars}});
+						m_CallStack.push_back({"Case 'otherwise'", cases.getOtherwise()});
 					}
 				}
 			}
@@ -630,7 +670,7 @@ void Machine::execute(const Program &program)
 
 TermHandle_t Machine::freshTerm(Term &&term)
 {
-	m_FreshTerms.emplace_back(newTerm(std::move(term)));	
+	m_FreshTerms.push_back(newTerm(std::move(term)));	
 	return m_FreshTerms.back();
 }
 

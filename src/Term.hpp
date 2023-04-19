@@ -159,20 +159,23 @@ public:
 	CasesTerm(const CasesTerm &term) = delete;
 	CasesTerm(CasesTerm &&term) = default;
 
-	CasesTerm(Cases_t &&cases, Term &&body);
-	CasesTerm(Cases_t &&cases);
+	CasesTerm(Cases_t &&cases, TermOwner_t &&otherwise, Term &&body);
+	CasesTerm(Cases_t &&cases, TermOwner_t &&otherwise);
 
 	CasesTerm &operator=(const CasesTerm &term) = delete;
 	CasesTerm &operator=(CasesTerm &&term) = delete;
 
-	TermHandle_t getBody() const;
+	TermHandle_t getOtherwise() const;
 
 	typename Cases_t::const_iterator find(const Case_t &c) const;
 	typename Cases_t::const_iterator begin() const;
 	typename Cases_t::const_iterator end() const;
 
+	TermHandle_t getBody() const;
+
 private:
 	Cases_t m_Cases;
+	TermOwner_t m_OtherwiseCase;
 	TermOwner_t m_Body;
 };
 
@@ -218,6 +221,7 @@ public:
 
 	Term(ValTerm &&term);
 	Term(BinOpTerm &&term);
+	Term(CasesTerm<Prim_t> &&term);
 	Term(CasesTerm<Loc_t> &&term);
 
 	Term &operator=(const Term &term) = delete;
@@ -232,6 +236,7 @@ public:
 
 	bool isVal() const;
 	bool isBinOp() const;
+	bool isPrimCases() const;
 	bool isLocCases() const;
 
 	const NilTerm &asNil() const;
@@ -243,11 +248,12 @@ public:
 	
 	const ValTerm &asVal() const;
 	const BinOpTerm &asBinOp() const;
+	const CasesTerm<Prim_t> &asPrimCases() const;
 	const CasesTerm<Loc_t> &asLocCases() const;
 
 private:
 	std::variant<
 		NilTerm, VarTerm, AbsTerm, AppTerm, LocAbsTerm, LocAppTerm, /* FCL-FMC    */
-		ValTerm, BinOpTerm, CasesTerm<Loc_t>                    /* Extensions */ 
+		ValTerm, BinOpTerm, CasesTerm<Prim_t>, CasesTerm<Loc_t>     /* Extensions */ 
 	> m_Term;
 };

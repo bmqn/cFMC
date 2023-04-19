@@ -4,7 +4,6 @@ print = ([#out] . write)
 fib_aux = (
     <b> . <a> . [a] . [b] . [a] . [b] . + . [a] . print . [a] . fib_aux
 )
-
 fib = (
     [0] . [1] . fib_aux
 )

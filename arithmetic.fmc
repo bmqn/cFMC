@@ -1,0 +1,17 @@
+write = (<@a> . <x> . [x]a)
+print = ([#out] . write)
+
+read = (<@a> . a<x> . [x])
+input = ([#in] . read)
+
+multiply_aux = (
+    <t> . <n> . <m> . [m] . (
+        0 -> [t],
+        otherwise -> [m] . [1] . - . [n] . [t] . [n] . + . multiply_aux
+    )
+)
+multiply = ([0] . multiply_aux)
+
+main = (
+    input . input . multiply . print
+)

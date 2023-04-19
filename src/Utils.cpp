@@ -118,6 +118,21 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 			}
 			term = binOp.getBody();
 		}
+		else if (term->isPrimCases())
+		{
+			const CasesTerm<Prim_t> &cases = term->asPrimCases();
+			ss << "(";
+			for (auto itCases = cases.begin(); itCases != cases.end(); ++itCases)
+			{
+				ss << itCases->first;
+				ss  << " -> " << stringifyTerm(itCases->second);
+				ss << ", ";
+			}
+			ss << "otherwise -> ";
+			ss << stringifyTerm(cases.getOtherwise());
+			ss << ")";
+			term = cases.getBody();
+		}
 		else if (term->isLocCases())
 		{
 			const CasesTerm<Loc_t> &cases = term->asLocCases();
@@ -126,13 +141,10 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 			{
 				ss << itCases->first;
 				ss  << " -> " << stringifyTerm(itCases->second);
-
-				auto itCasesCopy = itCases;
-				if (!(++itCasesCopy == cases.end()))
-				{
-					ss << ", ";
-				}
+				ss << ", ";
 			}
+			ss << "otherwise -> ";
+			ss << stringifyTerm(cases.getOtherwise());
 			ss << ")";
 			term = cases.getBody();
 		}
