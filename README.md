@@ -18,7 +18,7 @@ How about a linked-list ? Let's define function `LinkedList` to create a linked-
 
 ```
 LinkedList = (
-	<v> . new<@p> . [#null]p . [v]p . [#p]
+    <v> . new<@p> . [#null]p . [v]p . [#p]
 )
 
 push_back = (
