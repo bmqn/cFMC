@@ -23,12 +23,16 @@ rtraverse = (
     )
 )
 
+Pair  = (<y> . <x> . new<@p> . [y]p . [x]p . [#p])
+fst   = (<@p> . p<x> . [x]p . [x])
+snd   = (<@p> . p<x> . p<y> . [y]p . [x]p . [y])
+
 main = (
-    [1] . LinkedList . <@p>
-    . [#p] . [2] . push_back
-    . [#p] . [3] . push_back
-    . [#p] . [4] . push_back
-    . [#p] . [5] . push_back
-    . [#p] . [print] . traverse
-    . [#p] . [print] . rtraverse
+    [3]  . [4]  . Pair . LinkedList . <@p>
+    . [#p] . [5]  . [12] . Pair . push_back
+    . [#p] . [8]  . [15] . Pair . push_back
+    . [#p] . [7]  . [24] . Pair . push_back
+    . [#p] . [20] . [21] . Pair . push_back
+    . [#p] . [fst . print] . traverse
+    . [#p] . [snd . print] . traverse
 )
