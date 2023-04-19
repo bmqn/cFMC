@@ -168,7 +168,7 @@ void Machine::execute(const Program &program)
 				else if (loc == k_InputLoc)
 				{
 					std::string in;
-					std::getline(std::cin, in);
+					std::cin >> in;
 
 					Parser parser;
 					if (auto termOpt = parser.parseTerm(in))

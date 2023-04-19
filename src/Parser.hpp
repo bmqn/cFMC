@@ -32,8 +32,10 @@ private:
 
 	std::optional<ValTerm> parseVal();
 	std::optional<BinOpTerm> parseBinOp();
-	std::optional<CasesTerm<Prim_t>> parsePrimCases();
-	std::optional<CasesTerm<Loc_t>> parseLocCases();
+	
+	std::optional<std::variant<
+		CasesTerm<Prim_t>, CasesTerm<Loc_t>
+	>> parseCases(); 
 
 private:
 	std::unique_ptr<Lexer> m_Lexer;

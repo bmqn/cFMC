@@ -170,13 +170,16 @@ std::optional<Term> Parser::parseTerm()
 	{
 		return Term(std::move(binOpOpt.value()));
 	}
-	else if (auto primCasesOpt = parsePrimCases())
+	else if (auto casesOpt = parseCases())
 	{
-		return Term(std::move(primCasesOpt.value()));
-	}
-	else if (auto locCasesOpt = parseLocCases())
-	{
-		return Term(std::move(locCasesOpt.value()));
+		if (std::holds_alternative<CasesTerm<Prim_t>>(casesOpt.value()))
+		{
+			return Term(std::move(std::get<CasesTerm<Prim_t>>(casesOpt.value())));
+		}
+		else if (std::holds_alternative<CasesTerm<Loc_t>>(casesOpt.value()))
+		{
+			return Term(std::move(std::get<CasesTerm<Loc_t>>(casesOpt.value())));
+		}
 	}
 
 	return std::nullopt;
@@ -532,18 +535,21 @@ std::optional<BinOpTerm> Parser::parseBinOp()
 	return std::nullopt;
 }
 
-std::optional<CasesTerm<Prim_t>> Parser::parsePrimCases()
+std::optional<std::variant<CasesTerm<Prim_t>, CasesTerm<Loc_t>>> Parser::parseCases()
 {
 	if (m_Lexer->isPeekToken(Token::Lb))
 	{
 		m_Lexer->next();
 
 		std::optional<TermOwner_t> otherwiseCaseOpt;
-		CasesTerm<Prim_t>::Cases_t cases;
+		CasesTerm<Prim_t>::Cases_t primCases;
+		CasesTerm<Loc_t>::Cases_t locCases;
+
 		bool isCaseRemaining = true;
 		while (isCaseRemaining)
 		{
 			std::optional<Prim_t> primOpt;
+			std::optional<Loc_t> locOpt;
 			bool isOtherwise = false;
 
 			if (m_Lexer->isPeekToken(Token::Primitive))
@@ -560,6 +566,7 @@ std::optional<CasesTerm<Prim_t>> Parser::parsePrimCases()
 				if (auto idOpt = m_Lexer->getPeekBuffer())
 				{
 					m_Lexer->next();
+					locOpt = idOpt.value();
 					isOtherwise = (idOpt.value() == "otherwise");
 				}
 			}
@@ -580,7 +587,11 @@ std::optional<CasesTerm<Prim_t>> Parser::parsePrimCases()
 					}
 					else if (primOpt)
 					{
-						cases[primOpt.value()] = newTerm(std::move(termOpt.value()));
+						primCases[primOpt.value()] = newTerm(std::move(termOpt.value()));
+					}
+					else if (locOpt)
+					{
+						locCases[locOpt.value()] = newTerm(std::move(termOpt.value()));
 					}
 
 					if (m_Lexer->isPeekToken(Token::Comma))
@@ -596,17 +607,21 @@ std::optional<CasesTerm<Prim_t>> Parser::parsePrimCases()
 				else
 				{
 					parseError("Expected mapping term for case '" +
-						(isOtherwise ? "otherwise" : std::to_string(primOpt.value())) + "'", *m_Lexer
+						(isOtherwise ? "otherwise" : (primOpt ? std::to_string(primOpt.value()) : locOpt.value())) +
+						"'", *m_Lexer
 					);
 				}
 			}
 			else
 			{
 				parseError("Expected '->' after case '" +
-					(isOtherwise ? "otherwise" : std::to_string(primOpt.value())) + "'", *m_Lexer
+					(isOtherwise ? "otherwise" : (primOpt ? std::to_string(primOpt.value()) : locOpt.value())) +
+					"'", *m_Lexer
 				);
 			}
 		}
+
+		// TODO: valiate that only one sort of cases were found !
 
 		if (m_Lexer->isPeekToken(Token::Rb))
 		{
@@ -620,117 +635,40 @@ std::optional<CasesTerm<Prim_t>> Parser::parsePrimCases()
 
 					if (auto bodyOpt = parseTerm())
 					{
-						return CasesTerm<Prim_t>(
-							std::move(cases), std::move(otherwiseCaseOpt.value()),
-							std::move(bodyOpt.value())
-						);
+						if (primCases.size() > 0)
+						{
+							return CasesTerm<Prim_t>(
+								std::move(primCases), std::move(otherwiseCaseOpt.value()),
+								std::move(bodyOpt.value())
+							);
+						}
+						else if (locCases.size() > 0)
+						{
+							return CasesTerm<Loc_t>(
+								std::move(locCases), std::move(otherwiseCaseOpt.value()),
+								std::move(bodyOpt.value())
+							);
+						}
 					}
 				}
 
-				return CasesTerm<Prim_t>(
-					std::move(cases), std::move(otherwiseCaseOpt.value())
-				);
+				if (primCases.size() > 0)
+				{
+					return CasesTerm<Prim_t>(
+						std::move(primCases), std::move(otherwiseCaseOpt.value())
+					);
+				}
+				else if (locCases.size() > 0)
+				{
+					return CasesTerm<Loc_t>(
+						std::move(locCases), std::move(otherwiseCaseOpt.value())
+					);
+				}
 			}
 			else
 			{
 				parseError("Required an 'otherwise' case for cases", *m_Lexer);
 			}
-		}
-	}
-
-	return std::nullopt;
-}
-
-std::optional<CasesTerm<Loc_t>> Parser::parseLocCases()
-{
-	if (m_Lexer->isPeekToken(Token::Lb))
-	{
-		m_Lexer->next();
-
-		std::optional<TermOwner_t> otherwiseCaseOpt;
-		CasesTerm<Loc_t>::Cases_t cases;
-		bool isCaseRemaining = true;
-		while (isCaseRemaining)
-		{
-			if (m_Lexer->isPeekToken(Token::Id))
-			{
-				if (auto idOpt = m_Lexer->getPeekBuffer())
-				{
-					m_Lexer->next();
-
-					if (m_Lexer->isPeekToken(Token::Arrow))
-					{
-						m_Lexer->next();
-
-						if (auto termOpt = parseTerm())
-						{
-							if (idOpt.value() == "otherwise")
-							{
-								otherwiseCaseOpt = newTerm(std::move(termOpt.value()));
-							}
-							else if (idOpt)
-							{
-								cases[idOpt.value()] = newTerm(std::move(termOpt.value()));
-							}
-
-							if (m_Lexer->isPeekToken(Token::Comma))
-							{
-								m_Lexer->next();
-								isCaseRemaining = true;
-							}
-							else
-							{
-								isCaseRemaining = false;
-							}
-						}
-						else
-						{
-							parseError("Expected mapping term for case '" + idOpt.value() + "'", *m_Lexer);
-						}
-					}
-					else
-					{
-						parseError("Expected '->' after case '" + idOpt.value() + "'", *m_Lexer);
-					}
-				}
-			}
-			else
-			{
-				parseError("Expected a case for cases", *m_Lexer);
-			}
-		}
-
-		if (m_Lexer->isPeekToken(Token::Rb))
-		{
-			m_Lexer->next();
-
-			if (otherwiseCaseOpt)
-			{
-				if (m_Lexer->isPeekToken(Token::Dot))
-				{
-					m_Lexer->next();
-
-					if (auto bodyOpt = parseTerm())
-					{
-						return CasesTerm<Loc_t>(
-							std::move(cases), std::move(otherwiseCaseOpt.value()),
-							std::move(bodyOpt.value())
-						);
-					}
-				}
-
-				return CasesTerm<Loc_t>(
-					std::move(cases), std::move(otherwiseCaseOpt.value())
-				);
-			}
-			else
-			{
-				parseError("Required an 'otherwise' case for cases", *m_Lexer);
-			}
-		}
-		else
-		{
-			parseError("Expected closing ')' for cases", *m_Lexer);
 		}
 	}
 
