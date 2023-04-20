@@ -65,10 +65,10 @@ The program must take a file (containing the program source) or program source d
 Usage: cfmc [--help] [--debug] [--file path | --source src]
 ```
 
-For example, running the program in `fib.fmc` would look like.
+For example, running the program in `fibonacci.fmc` would look like.
 
 ```
-cfmc fib.fmc
+cfmc --file fibonacci.fmc
 ```
 
 For example, running the program `main = ([in<x> . [x]out] . <echo> . echo)` would look like.
@@ -78,10 +78,6 @@ cfmc --source 'main = ([in<x> . [x]out] . <echo> . echo)'
 ```
 
 You can optionally specify `--debug` to display the state of the stack after running the machine.
-
-```
-cfmc --debug --file fib.fmc
-```
 
 ### macOS & Linux
 

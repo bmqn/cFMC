@@ -17,7 +17,7 @@ static void machineError(std::string message, const Machine &machine)
 		std::stringstream ss(callstackDebug);
 		std::string line;
 
-		while (std::getline(ss, line, '\n'))
+		while (std::getline(ss, line))
 		{
 			std::cerr << "| " << line << std::endl;
 		}
@@ -27,7 +27,7 @@ static void machineError(std::string message, const Machine &machine)
 		std::stringstream ss(stackDebug);
 		std::string line;
 
-		while (std::getline(ss, line, '\n'))
+		while (std::getline(ss, line))
 		{
 			std::cerr << "| " << line << std::endl;
 		}
@@ -37,7 +37,7 @@ static void machineError(std::string message, const Machine &machine)
 	// 	std::stringstream ss(bindDebug);
 	// 	std::string line;
 
-	// 	while (std::getline(ss, line, '\n'))
+	// 	while (std::getline(ss, line))
 	// 	{
 	// 		std::cerr << "| " << line << std::endl;
 	// 	}
@@ -678,32 +678,32 @@ std::string Machine::getStackDebug() const
 {
 	std::stringstream ss;
 
-	ss << "---- Stacks ----" << std::endl;
+	ss << "---- Stacks ----" << '\n';
 
 	for (auto itStacks = m_Stacks.begin(); itStacks != m_Stacks.end(); ++itStacks)
 	{
 		if (auto idOpt = getIdFromReservedLoc(itStacks->first))
 		{
-			ss << "  -- (Reserved) Location " << idOpt.value() << std::endl;
+			ss << "  -- (Reserved) Location " << idOpt.value() << '\n';
 		}
 		else
 		{
-			ss << "  -- Location " << itStacks->first << std::endl;
+			ss << "  -- Location " << itStacks->first << '\n';
 		}
 
 		for (auto itStack = itStacks->second.rbegin(); itStack != itStacks->second.rend(); ++itStack)
 		{
-			ss << "    " << stringifyTerm((*itStack)) << std::endl;
+			ss << "    " << stringifyTerm((*itStack)) << '\n';
 		}
 
 		auto itStacksCopy = itStacks;
 		if (!(++itStacksCopy == m_Stacks.end()))
 		{
-			ss << std::endl;
+			ss << '\n';
 		}
 	}
 
-	ss << "--------------------" << std::endl;
+	ss << "--------------------";
 
 	return ss.str();
 }
@@ -712,15 +712,15 @@ std::string Machine::getCallstackDebug() const
 {
 	std::stringstream ss;
 
-	ss << "---- Call Stack ----" << std::endl;
+	ss << "---- Call Stack ----" << '\n';
 
 	for (auto itFrame = m_CallStack.rbegin(); itFrame != m_CallStack.rend(); ++itFrame)
 	{
 		ss << std::string(m_CallStack.size() - (m_CallStack.rend() - itFrame), ' ');
-		ss << "> " << itFrame->first << " => " << stringifyTerm(itFrame->second) << std::endl;
+		ss << "> " << itFrame->first << " => " << stringifyTerm(itFrame->second) << '\n';
 	}
 
-	ss << "---------------" << std::endl;
+	ss << "---------------";
 
 	return ss.str();
 }
@@ -729,25 +729,25 @@ std::string Machine::getBindDebug() const
 {
 	std::stringstream ss;
 
-	ss << "--- Bind Context ---" << std::endl;
+	ss << "--- Bind Context ---" << '\n';
 
 	for (auto itBindCtx = m_VarBindCtx.begin(); itBindCtx != m_VarBindCtx.end(); ++itBindCtx)
 	{
-		ss << "  -- Binds for term " << stringifyTerm(itBindCtx->first) << std::endl;
+		ss << "  -- Binds for term " << stringifyTerm(itBindCtx->first) << '\n';
 
 		for (auto itBinds = itBindCtx->second.begin(); itBinds != itBindCtx->second.end(); ++itBinds)
 		{
-			ss << "    " << (*itBinds).first << " --> " << stringifyTerm(itBinds->second) << std::endl;
+			ss << "    " << (*itBinds).first << " --> " << stringifyTerm(itBinds->second) << '\n';
 		}
 
 		auto itBindCtxCopy = itBindCtx;
 		if (!(++itBindCtxCopy == m_VarBindCtx.end()))
 		{
-			ss << std::endl;
+			ss << '\n';
 		}
 	}
 
-	ss << "--------------------" << std::endl;
+	ss << "--------------------";
 
 	return ss.str();
 }
