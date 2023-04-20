@@ -10,6 +10,7 @@ double_it = (
 
 main = (
     new<@a> . [5]a .
+    [#a] . get . print .
     [#a] . double_it .
     [#a] . get . print
 )
