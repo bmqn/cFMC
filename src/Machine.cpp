@@ -358,12 +358,14 @@ void Machine::execute(const Program &program)
 							}
 							else
 							{
-								machineError("Location abstraction is attempting to bind non-location-value'", *this);
+								machineError("Location abstraction is attempting to bind non-location-value '" +
+									stringifyTerm(toPopTerm) + "' !", *this);
 							}
 						}
 						else
 						{
-							machineError("Location abstraction is attempting to bind non-value'", *this);
+							machineError("Location abstraction is attempting to bind non-value  '" +
+								stringifyTerm(toPopTerm) + "' !", *this);
 						}
 						
 						m_Stacks[loc].pop_back();
