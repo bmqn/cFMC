@@ -79,7 +79,7 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 			{
 				ss << locAbs.getLoc();
 			}
-			ss << "<^" << locAbs.getLocVar().value_or("_") << ">";
+			ss << "<@" << locAbs.getLocVar().value_or("_") << ">";
 			term = locAbs.getBody();
 		}
 		else if (term->isLocApp())
