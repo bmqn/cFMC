@@ -115,7 +115,7 @@ void Machine::execute(const Program &program)
 			{
 				// Push program function
 				m_Control.push_back(std::make_pair(Env_t{}, termOpt.value()));
-				m_CallStack.push_back({var.getVar(), closure.second});
+				m_CallStack.push_back({var.getVar(), termOpt.value()});
 			}
 			// We didn't find our term anywhere.. error !
 			else
