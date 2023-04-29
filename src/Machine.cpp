@@ -8,7 +8,6 @@ static void machineError(std::string message, const Machine &machine)
 {
 	std::string stackDebug = machine.getStackDebug();
 	std::string callstackDebug = machine.getCallstackDebug();
-	// std::string bindDebug = machine.getBindDebug();
 
 	std::cerr << "[Machine Error] ";
 	std::cerr << message << std::endl;
@@ -32,16 +31,6 @@ static void machineError(std::string message, const Machine &machine)
 			std::cerr << "| " << line << std::endl;
 		}
 	}
-
-	// {
-	// 	std::stringstream ss(bindDebug);
-	// 	std::string line;
-
-	// 	while (std::getline(ss, line))
-	// 	{
-	// 		std::cerr << "| " << line << std::endl;
-	// 	}
-	// }
 
 	std::exit(1);
 }
@@ -72,17 +61,15 @@ static std::string locGenerator()
 
 void Machine::execute(const Program &program)
 {
-	m_VarBindCtx.clear();
-	m_LocVarBindCtx.clear();
-	while (!m_Frame.empty())
-	{
-		m_Frame.pop_back();
-		m_CallStack.clear();
-	}
+	m_Memory.clear();
+	m_Control.clear();
 
 	if (auto termOpt = program.load("main"))
 	{
-		m_Frame.push_back(std::make_pair(termOpt.value(), std::make_pair(BoundVars_t(), BoundLocVars_t())));
+		m_Control.push_back(
+			std::make_pair(Env_t{}, termOpt.value())
+		);
+
 		m_CallStack.push_back({"main", termOpt.value()});
 	}
 	else
@@ -91,13 +78,13 @@ void Machine::execute(const Program &program)
 		return;
 	}
 
-	while (!m_Frame.empty())
+	while (!m_Control.empty())
 	{
-		// Copy the term and its bound variables because we pop afterwards
-		auto [term, bound] = m_Frame.back();
-		m_Frame.pop_back();
-
-		auto [boundVars, boundLocVars] = bound;
+		// Get the next environment and term
+		Closure_t closure = m_Control.back();
+		Env_t env = Env_t(closure.first);
+		TermHandle_t term = closure.second;
+		m_Control.pop_back();
 
 		if (term->isNil())
 		{
@@ -110,59 +97,126 @@ void Machine::execute(const Program &program)
 		{
 			const VarTerm &var = term->asVar();
 
-			// Push continuation term to frame
-			m_Frame.push_back({var.getBody(), {boundVars, boundLocVars}});
+			// Push continuation term
+			m_Control.push_back(std::make_pair(env, var.getBody()));
 
-			// Find bound term
-			auto itBoundVars = boundVars.find(var.getVar());
-			if (itBoundVars != boundVars.end())
+			// We found term in our environment
+			auto itEnv = env.first.find(var.getVar());
+			if (itEnv != env.first.end())
 			{
-				// Find binding context for bound term
-				auto itVarBindCtx = m_VarBindCtx.find(itBoundVars->second);
-				if (itVarBindCtx != m_VarBindCtx.end())
+				// Push bound term
+				auto closurePtr = itEnv->second;
+				Closure_t *closure = reinterpret_cast<Closure_t *>(closurePtr.get());
+				m_Control.push_back(*closure);
+				m_CallStack.push_back({"Binding of '" + var.getVar() + "'", closure->second});
+			}
+			// We found term in our program functions
+			else if (auto termOpt = program.load(var.getVar()))
+			{
+				// Push program function
+				m_Control.push_back(std::make_pair(Env_t{}, termOpt.value()));
+				m_CallStack.push_back({var.getVar(), closure.second});
+			}
+			// We didn't find our term anywhere.. error !
+			else
+			{
+				machineError("Variable '" + var.getVar() + "' "
+					+ "is not bound to anything !", *this);
+			}
+		}
+		else if (term->isApp())
+		{
+			const AppTerm &app = term->asApp();
+
+			m_Control.push_back(std::make_pair(env, app.getBody()));
+
+			auto appActionWithLoc = [&](Loc_t loc) {
+				// New stream
+				if (loc == k_NewLoc)
 				{
-					// Push bound term and its binding context to frame
-					m_Frame.push_back({itBoundVars->second, {itVarBindCtx->second, boundLocVars}});
-					m_CallStack.push_back({"Binding of '" + var.getVar() + "'", itBoundVars->second});
+					machineError("Application cannot push to 'new' location !", *this);
 				}
+				// Input stream
+				else if (loc == k_InputLoc)
+				{
+					machineError("Application cannot push to 'input' location !", *this);
+				}
+				// Output stream
+				else if (loc == k_OutputLoc)
+				{
+					std::cout << stringifyClosure(std::make_pair(env, app.getArg())) << std::endl;
+				}
+				// Null stream
+				else if (loc == k_NullLoc)
+				{}
+				// Generic stack
 				else
 				{
-					machineError("Variable '" + var.getVar() + "' "
-						+ "is bound to '" + stringifyTerm(itBoundVars->second) + "' "
-						+ "but did not have an environment binding ! "
-						+ "Be weary of variable capture !", *this
-					);
+					// If we have variables that are bound to values, then push them directly
+					// instead of as variables. This makes it much easier to deal with values
+					// in binary operations and cases etc.
+
+					bool hasPushedAsValue = false;
+					
+					if (app.getArg()->isVar())
+					{
+						const VarTerm &var = app.getArg()->asVar();
+
+						auto itEnv = env.first.find(var.getVar());
+						if (itEnv != env.first.end())
+						{
+							auto closurePtr = itEnv->second;
+							Closure_t *closure = reinterpret_cast<Closure_t *>(closurePtr.get());
+
+							if (closure->second->isVal())
+							{
+								m_Memory[loc].push_back(*closure);
+								hasPushedAsValue = true;
+							}
+						}
+					}
+
+					if (!hasPushedAsValue)
+					{
+						m_Memory[loc].push_back(std::make_pair(env, app.getArg()));
+					}
 				}
+			};
+
+			auto itEnv = env.second.find(app.getLoc());
+			if (itEnv != env.second.end())
+			{
+				appActionWithLoc(itEnv->second);
+			}
+			else if (isReservedLoc(app.getLoc()))
+			{
+				appActionWithLoc(app.getLoc());
 			}
 			else
 			{
-				if (auto termOpt = program.load(var.getVar()))
-				{
-					// Push bound term and a new binding context to frame
-					m_Frame.push_back({termOpt.value(), {BoundVars_t(), BoundLocVars_t()}});
-					m_CallStack.push_back({var.getVar(), termOpt.value()});
-				}
-				else
-				{
-					machineError("Variable '" + var.getVar() + "' "
-						+ "is not bound to anything !", *this
-					);
-				}
+				machineError("Application cannot push to (invalid) location '"
+					+ app.getLoc() + "' !", *this);
 			}
 		}
 		else if (term->isAbs())
 		{
 			const AbsTerm &abs = term->asAbs();
-			TermHandle_t toPop;
 
 			auto absActionWithLoc = [&](Loc_t loc) {
 				// New stream
 				if (loc == k_NewLoc)
 				{
 					Loc_t newLoc = locGenerator();
-					toPop = freshTerm(ValTerm(newLoc));
+					m_Memory[newLoc] = {};
 
-					m_Stacks[newLoc] = {};
+					if (abs.getVar())
+					{
+						env.first[abs.getVar().value()] = std::make_shared<Closure_t>(std::make_pair(
+							Env_t{}, freshTerm(ValTerm(newLoc))
+						));
+					}
+
+					m_Control.push_back(std::make_pair(env, abs.getBody()));
 				}
 				// Input stream
 				else if (loc == k_InputLoc)
@@ -173,501 +227,347 @@ void Machine::execute(const Program &program)
 					Parser parser;
 					if (auto termOpt = parser.parseTerm(in))
 					{
-						toPop = freshTerm(std::move(termOpt.value()));
+						if (abs.getVar())
+						{
+							env.first[abs.getVar().value()] = std::make_shared<Closure_t>(std::make_pair(
+								Env_t{}, freshTerm(std::move(termOpt.value()))
+							));
+						}
+
+						m_Control.push_back(std::make_pair(env, abs.getBody()));
+					}
+					else
+					{
+						machineError("Cannot parse input '"
+							+ in + "' as term !", *this);
 					}
 				}
 				// Output stream
 				else if (loc == k_OutputLoc)
 				{
-					machineError("Abstraction is attemping to bind from output location !", *this);
+					machineError("Abstraction cannot bind from 'output' location !", *this);
 				}
 				// Null stream
 				else if (loc == k_NullLoc)
 				{
-					machineError("Abstraction is attemping to bind from null location !", *this);
+					machineError("Abstraction cannot bind from 'null' location !", *this);
 				}
 				// Generic stack
 				else
 				{
-					if (!m_Stacks[loc].empty())
+					if (auto closureOpt = tryPop(env, loc))
 					{
-						toPop = m_Stacks[loc].back();
-						m_Stacks[loc].pop_back();
+						if (abs.getVar())
+						{
+							env.first[abs.getVar().value()] = std::make_shared<Closure_t>(closureOpt.value());
+						}
+
+						m_Control.push_back(std::make_pair(env, abs.getBody()));
 					}
 					else
 					{
-						machineError("Abstraction is attempting to bind from empty stack '"
-							+ loc + "' !", *this
-						);
+						machineError("Abstraction cannot pop from location '"
+							+ loc + "' !", *this);
 					}
 				}
 			};
 
-			// Reserved stack/stream
-			if (auto locOpt = getReservedLocFromId(abs.getLoc()))
+			auto itEnv = env.second.find(abs.getLoc());
+			if (itEnv != env.second.end())
 			{
-				absActionWithLoc(locOpt.value());
+				absActionWithLoc(itEnv->second);
 			}
-			// Generic stack
+			else if (isReservedLoc(abs.getLoc()))
+			{
+				absActionWithLoc(abs.getLoc());
+			}
 			else
 			{
-				auto itBound = boundLocVars.find(abs.getLoc());
-				if (itBound != boundLocVars.end())
-				{
-					absActionWithLoc(itBound->second);
-				}
-				else
-				{
-					machineError("Abstraction location '" + abs.getLoc() + "' "
-						+ "is not bound to anything !", *this
-					);
-				}
+				machineError("Abstraction cannot pop from (invalid) location '"
+					+ abs.getLoc() + "' !", *this);
 			}
-
-			// Update global binding context for binding variable
-			if (abs.getVar())
-			{
-				boundVars[abs.getVar().value()] = toPop;
-			}
-
-			// Push continuation term to frame
-			m_Frame.push_back(std::make_pair(abs.getBody(), std::make_pair(boundVars, boundLocVars)));
 		}
-		else if (term->isApp())
+		else if (term->isLocApp())
 		{
-			const AppTerm &app = term->asApp();
-			TermHandle_t toPush = app.getArg();
+			const LocAppTerm &locApp = term->asLocApp();
 
-			// Find and push argument term to stack
-			if (app.getArg()->isVar())
-			{
-				const VarTerm &var = app.getArg()->asVar();
-
-				auto itBound = boundVars.find(var.getVar());
-				if (itBound != boundVars.end())
-				{
-					toPush = itBound->second;
-				}
-				else if (!program.load(var.getVar()))
-				{
-					machineError("Application argument '" + var.getVar() + "' "
-						+ "is not bound to anything !", *this
-					);
-				}
-			}
+			m_Control.push_back(std::make_pair(env, locApp.getBody()));
 
 			auto appActionWithLoc = [&](Loc_t loc) {
 				// New stream
 				if (loc == k_NewLoc)
 				{
-					machineError("Application is attemping to push to new location !", *this);
+					machineError("Location application cannot push to 'new' location ! ", *this);
 				}
 				// Input stream
 				else if (loc == k_InputLoc)
 				{
-					machineError("Application is attemping to push to input location !", *this);
-				}
-				// Output stream
-				else if (loc == k_OutputLoc)
-				{
-					// Basic 'cheaty' implementation
-					std::cout << stringifyTerm(toPush) << std::endl;
+					machineError("Location application cannot push to 'input' location ! ", *this);
 				}
 				// Null stream
-				else if (loc == k_OutputLoc)
-				{
-					// Do nothing !
-				}
-				// Generic stream
+				else if (loc == k_NullLoc)
+				{}
 				else
 				{
-					m_Stacks[loc].push_back(toPush);
+					Loc_t locArg = locApp.getArg();
+
+					auto itEnv = env.second.find(locApp.getArg());
+					if (itEnv != env.second.end())
+					{
+						locArg = itEnv->second;
+					}
+
+					// Output stream
+					if (loc == k_OutputLoc)
+					{
+						std::cout << stringifyClosure(std::make_pair(env, freshTerm(ValTerm(locArg)))) << std::endl;
+					}
+					// Generic stack
+					else
+					{
+						m_Memory[loc].push_back(std::make_pair(env, freshTerm(ValTerm(locArg))));
+					}
 				}
 			};
 
-			// Reserved stack/stream
-			if (auto locOpt = getReservedLocFromId(app.getLoc()))
+			auto itEnv = env.second.find(locApp.getLoc());
+			if (itEnv != env.second.end())
 			{
-				appActionWithLoc(locOpt.value());
+				appActionWithLoc(itEnv->second);
 			}
-			// Generic stack
+			else if (isReservedLoc(locApp.getLoc()))
+			{
+				appActionWithLoc(locApp.getLoc());
+			}
 			else
 			{
-				auto itBound = boundLocVars.find(app.getLoc());
-				if (itBound != boundLocVars.end())
-				{
-					appActionWithLoc(itBound->second);
-				}
-				else
-				{
-					machineError("Application location '" + app.getLoc() + "' "
-						+ "is not bound to anything !", *this
-					);
-				}
+				machineError("Location application cannot push to (invalid) location '"
+					+ locApp.getLoc() + "' !", *this);
 			}
-
-			// Update binding context of argument term
-			m_VarBindCtx[toPush] = boundVars;
-
-			// Push continuation term to frame
-			m_Frame.push_back(std::make_pair(app.getBody(), std::make_pair(boundVars, boundLocVars)));
 		}
 		else if (term->isLocAbs())
 		{
 			const LocAbsTerm &locAbs = term->asLocAbs();
-			Loc_t toPop;
-
+			
 			auto absActionWithLoc = [&](Loc_t loc) {
 				// New stream
 				if (loc == k_NewLoc)
 				{
 					Loc_t newLoc = locGenerator();
-					toPop = newLoc;
+					m_Memory[newLoc] = {};
 
-					m_Stacks[newLoc] = {};
+					if (locAbs.getLocVar())
+					{
+						env.second[locAbs.getLocVar().value()] = newLoc;
+					}
+
+					m_Control.push_back(std::make_pair(env, locAbs.getBody()));
 				}
 				// Input stream
 				else if (loc == k_InputLoc)
 				{
-					machineError("Location abstraction is attemping to bind from input location !", *this);
+					machineError("Location abstraction cannot pop from 'input' location !", *this);
 				}
 				// Output stream
 				else if (loc == k_OutputLoc)
 				{
-					machineError("Location abstraction is attemping to bind from output location !", *this);
+					machineError("Location abstraction cannot pop from 'output' location !", *this);
 				}
 				// Null stream
 				else if (loc == k_NullLoc)
 				{
-					machineError("[Machine Error] Location abstraction is attemping to bind from null location !", *this);
+					machineError("Location abstraction cannot pop from 'null' location !", *this);
 				}
-				// Generic stream
+				// Generic stack
 				else
 				{
-					if (!m_Stacks[loc].empty())
+					if (auto locOpt = tryPopLoc(env, loc))
 					{
-						TermHandle_t toPopTerm = m_Stacks[loc].back();
-						
-						if (toPopTerm->isVal())
+						if (locAbs.getLocVar())
 						{
-							const ValTerm &val = toPopTerm->asVal();
+							env.second[locAbs.getLocVar().value()] = locOpt.value();
+						}
 
-							if (val.isLoc())
-							{
-								toPop = val.asLoc();
-							}
-							else
-							{
-								machineError("Location abstraction is attempting to bind non-location-value '" +
-									stringifyTerm(toPopTerm) + "' !", *this);
-							}
-						}
-						else
-						{
-							machineError("Location abstraction is attempting to bind non-value  '" +
-								stringifyTerm(toPopTerm) + "' !", *this);
-						}
-						
-						m_Stacks[loc].pop_back();
+						m_Control.push_back(std::make_pair(env, locAbs.getBody()));
 					}
 					else
 					{
-						machineError("Location abstraction is attempting to bind from empty location '"
-							+ loc + "' !", *this
-						);
+						machineError("Location abstraction cannot pop from location '"
+							+ loc + "' !", *this);
 					}
 				}
 			};
 
-			// Reserved stack/stream
-			if (auto locOpt = getReservedLocFromId(locAbs.getLoc()))
+			auto itEnv = env.second.find(locAbs.getLoc());
+			if (itEnv != env.second.end())
 			{
-				absActionWithLoc(locOpt.value());
+				absActionWithLoc(itEnv->second);
 			}
-			// Generic stack
-			else
+			else if (isReservedLoc(locAbs.getLoc()))
 			{
-				auto itBound = boundLocVars.find(locAbs.getLoc());
-				if (itBound != boundLocVars.end())
-				{
-					absActionWithLoc(itBound->second);
-				}
-				else
-				{
-					machineError("Location abstraction location '" + locAbs.getLoc() + "' "
-						+ "is not bound to anything !", *this
-					);
-				}
-			}
-
-			// Update global binding context for binding variable
-			if (locAbs.getLocVar())
-			{
-				boundLocVars[locAbs.getLocVar().value()] = toPop;
-			}
-
-			// Push continuation term to frame
-			m_Frame.push_back(std::make_pair(locAbs.getBody(), std::make_pair(boundVars, boundLocVars)));
-		}
-		else if (term->isLocApp())
-		{
-			const LocAppTerm &locApp = term->asLocApp();
-			TermHandle_t toPush;
-
-			// Find and push argument term to stack
-			auto it = boundLocVars.find(locApp.getArg());
-			if (it != boundLocVars.end())
-			{
-				toPush = freshTerm(ValTerm(it->second));;
-			}
-			else if (locApp.getArg() == k_LambdaLoc)
-			{
-				toPush = freshTerm(ValTerm(k_LambdaLoc));
-			}
-			else if (locApp.getArg() == k_NewLoc)
-			{
-				toPush = freshTerm(ValTerm(k_NewLoc));
-			}
-			else if (locApp.getArg() == k_InputLoc)
-			{
-				toPush = freshTerm(ValTerm(k_InputLoc));
-			}
-			else if (locApp.getArg() == k_OutputLoc)
-			{
-				toPush = freshTerm(ValTerm(k_OutputLoc));
-			}
-			else if (locApp.getArg() == k_NullLoc)
-			{
-				toPush = freshTerm(ValTerm(k_NullLoc));
+				absActionWithLoc(locAbs.getLoc());
 			}
 			else
 			{
-				machineError("Location application argument '" + locApp.getArg() + "' "
-					+ "is not bound to anything !", *this
-				);
+				machineError("Location abstraction cannot pop from (invalid) location '"
+					+ locAbs.getLoc() + "' !", *this);
 			}
-
-			auto appActionWithLoc = [&](Loc_t loc) {
-				// New stream
-				if (loc == k_NewLoc)
-				{
-					machineError("Location application is attemping to push to 'new' location ! ", *this);
-				}
-				// Input stream
-				else if (loc == k_InputLoc)
-				{
-					machineError("Location application is attemping to push to 'input' location ! ", *this);
-				}
-				// Output stream
-				else if (loc == k_OutputLoc)
-				{
-					// Basic 'cheaty' implementation
-					std::cout << stringifyTerm(toPush) << std::endl;
-				}
-				// Null stream
-				else if (loc == k_OutputLoc)
-				{
-					// Do nothing !
-				}
-				// Generic stream
-				else
-				{
-					m_Stacks[loc].push_back(toPush);
-				}
-			};
-
-			// Reserved stack/stream
-			if (auto locOpt = getReservedLocFromId(locApp.getLoc()))
-			{
-				appActionWithLoc(locOpt.value());
-			}
-			// Generic stack
-			else
-			{
-				auto itBound = boundLocVars.find(locApp.getLoc());
-				if (itBound != boundLocVars.end())
-				{
-					appActionWithLoc(itBound->second);
-				}
-				else
-				{
-					machineError("Location application location '" + locApp.getLoc() + "' "
-						+ "is not bound to anything !", *this
-					);
-				}
-			}
-
-			// Update binding context of argument term
-			m_LocVarBindCtx[toPush] = boundLocVars;
-
-			// Push continuation term to frame
-			m_Frame.push_back(std::make_pair(locApp.getBody(), std::make_pair(boundVars, boundLocVars)));
 		}
 		else if (term->isVal())
 		{
-			machineError("Value term is being executed by machine ! Perhaps something wasn't pushed to the stack !", *this);
+			machineError("Value '" + stringifyClosure(closure)
+				+ "' cannot be executed by machine !", *this);
 		}
 		else if (term->isBinOp())
 		{
 			const BinOpTerm &binOp = term->asBinOp();
-			TermHandle_t toPush;
-			TermHandle_t toPop1;
-			TermHandle_t toPop2;
 
-			if (!m_Stacks[Loc_t(k_LambdaLoc)].empty())
-			{
-				toPop1 = m_Stacks[k_LambdaLoc].back();
-				m_Stacks[Loc_t(k_LambdaLoc)].pop_back();
-			}
-			else
-			{
-				machineError("Binary operation is attempting to pop from empty stack !", *this);
-			}
+			m_Control.push_back(std::make_pair(env, binOp.getBody()));
 
-			if (!m_Stacks[Loc_t(k_LambdaLoc)].empty())
+			if (auto prim1Opt = tryPopPrim(env, k_LambdaLoc))
 			{
-				toPop2 = m_Stacks[k_LambdaLoc].back();
-				m_Stacks[Loc_t(k_LambdaLoc)].pop_back();
-			}
-			else
-			{
-				machineError("Binary operation is attempting to pop from empty stack !", *this);
-			}
-
-			if (toPop1->isVal())
-			{
-				if (toPop2->isVal())
+				if (auto prim2Opt = tryPopPrim(env, k_LambdaLoc))
 				{
-					const ValTerm &val1 = toPop1->asVal();
-					const ValTerm &val2 = toPop2->asVal();
-					auto prim1 = val1.asPrim();
-					auto prim2 = val2.asPrim();
-					
+					auto prim1 = prim1Opt.value();
+					auto prim2 = prim2Opt.value();
+
 					if (binOp.isOp(BinOpTerm::Plus))
 					{
-						toPush = freshTerm(ValTerm(prim2 + prim1));
+						m_Memory[k_LambdaLoc].push_back(std::make_pair(env, freshTerm(ValTerm(prim2 + prim1))));
 					}
 					else if (binOp.isOp(BinOpTerm::Minus))
 					{
-						toPush = freshTerm(ValTerm(prim2 - prim1));
+						m_Memory[k_LambdaLoc].push_back(std::make_pair(env, freshTerm(ValTerm(prim2 - prim1))));
 					}
 				}
 				else
 				{
-					machineError("Binary operation is attempting to use a non-value as second popped term !", *this);
+					machineError("Binary operation cannot use a non-primitive-value as second operand !", *this);
 				}
 			}
 			else
 			{
-				machineError("Binary operation is attempting to use a non-value as first popped value !", *this);
+				machineError("Binary operation cannot use a non-primitive-value as first operand !", *this);
 			}
-
-			// Push to the stack
-			m_Stacks[k_LambdaLoc].push_back(toPush);
-
-			// Update binding context of argument term
-			m_VarBindCtx[toPush] = boundVars;
-
-			// Push continuation term to frame
-			m_Frame.push_back(std::make_pair(binOp.getBody(), std::make_pair(boundVars, boundLocVars)));
 		}
 		else if (term->isPrimCases())
 		{
 			const CasesTerm<Prim_t> &cases = term->asPrimCases();
-			TermHandle_t toPop;
 
-			// Push continuation term to frame
-			m_Frame.push_back(std::make_pair(cases.getBody(), std::make_pair(boundVars, boundLocVars)));
+			m_Control.push_back(std::make_pair(env, cases.getBody()));
 
-			if (!m_Stacks[Loc_t(k_LambdaLoc)].empty())
+			if (auto primOpt = tryPopPrim(env, k_LambdaLoc))
 			{
-				toPop = m_Stacks[k_LambdaLoc].back();
-				m_Stacks[Loc_t(k_LambdaLoc)].pop_back();
-			}
-			else
-			{
-				machineError("Cases is attempting to match from empty stack !", *this);
-			}
-
-			if (toPop->isVal())
-			{
-				const ValTerm &val = toPop->asVal();
-
-				if (val.isPrim())
+				auto itCase = cases.find(primOpt.value());
+				if (itCase != cases.end())
 				{
-					auto itCase = cases.find(val.asPrim());
-					if (itCase != cases.end())
-					{
-						// Push case term and the global binding context to frame
-						m_Frame.push_back(std::make_pair(itCase->second, std::make_pair(boundVars, boundLocVars)));
-						m_CallStack.push_back({"Case '" + std::to_string(val.asPrim()) + "'", itCase->second});
-					}
-					else
-					{
-						// Push case term and the global binding context to frame
-						m_Frame.push_back({cases.getOtherwise(), {boundVars, boundLocVars}});
-						m_CallStack.push_back({"Case 'otherwise'", cases.getOtherwise()});
-					}
+					m_Control.push_back(std::make_pair(env, itCase->second));
+					
+					m_CallStack.push_back({"Case '" + std::to_string(primOpt.value()) + "'", closure.second});
 				}
-				else if (val.isLoc())
+				else
 				{
-					machineError("Cases expect a primitive value instead of a location !", *this);
+					m_Control.push_back(std::make_pair(env, cases.getOtherwise()));
+					
+					m_CallStack.push_back({"Case 'otherwise'", closure.second});
 				}
 			}
 			else
 			{
-				machineError("Cases is attemping to match a non-value !", *this);
+				machineError("Primitive cases cannot match a non-primitive value !", *this);
 			}
 		}
 		else if (term->isLocCases())
 		{
 			const CasesTerm<Loc_t> &cases = term->asLocCases();
-			TermHandle_t toPop;
 
-			// Push continuation term to frame
-			m_Frame.push_back(std::make_pair(cases.getBody(), std::make_pair(boundVars, boundLocVars)));
+			m_Control.push_back(std::make_pair(env, cases.getBody()));
 
-			if (!m_Stacks[Loc_t(k_LambdaLoc)].empty())
+			if (auto locOpt = tryPopLoc(env, k_LambdaLoc))
 			{
-				toPop = m_Stacks[k_LambdaLoc].back();
-				m_Stacks[Loc_t(k_LambdaLoc)].pop_back();
-			}
-			else
-			{
-				machineError("Cases is attempting to match from empty stack !", *this);
-			}
-
-			if (toPop->isVal())
-			{
-				const ValTerm &val = toPop->asVal();
-
-				if (val.isPrim())
+				auto itCase = cases.find(locOpt.value());
+				if (itCase != cases.end())
 				{
-					machineError("Cases expect a location value instead of a primitive !", *this);
+					m_Control.push_back(std::make_pair(env, itCase->second));
+					m_CallStack.push_back({"Case '" + locOpt.value() + "'", closure.second});
 				}
-				else if (val.isLoc())
+				else
 				{
-					auto itCase = cases.find(val.asLoc());
-					if (itCase != cases.end())
-					{
-						// Push case term and the global binding context to frame
-						m_Frame.push_back(std::make_pair(itCase->second, std::make_pair(boundVars, boundLocVars)));
-						m_CallStack.push_back({"Case '" + val.asLoc() + "'", itCase->second});
-					}
-					else
-					{
-						// Push case term and the global binding context to frame
-						m_Frame.push_back({cases.getOtherwise(), {boundVars, boundLocVars}});
-						m_CallStack.push_back({"Case 'otherwise'", cases.getOtherwise()});
-					}
+					m_Control.push_back(std::make_pair(env, cases.getOtherwise()));	
+					m_CallStack.push_back({"Case 'otherwise'", closure.second});
 				}
 			}
 			else
 			{
-				machineError("Cases is attemping to match a non-value !", *this);
+				machineError("Location cases cannot match a non-location value !", *this);
 			}
 		}
 	}
+}
+
+std::optional<Closure_t> Machine::tryPop(Env_t env, Loc_t loc)
+{
+	if (!m_Memory[loc].empty())
+	{
+		Closure_t closure = m_Memory[loc].back();
+		m_Memory[loc].pop_back();
+		return closure;
+	}
+	else
+	{
+		machineError("Cannot pop from empty stack  '"
+			+ loc + "' !", *this);
+	}
+
+	return std::nullopt;
+}
+
+std::optional<Prim_t> Machine::tryPopPrim(Env_t env, Loc_t loc)
+{
+	if (!m_Memory[loc].empty())
+	{
+		if (m_Memory[loc].back().second->isVal())
+		{
+			const ValTerm &val = m_Memory[loc].back().second->asVal();
+			m_Memory[loc].pop_back();
+
+			if (val.isPrim())
+			{
+				return val.asPrim();
+			}
+		}
+	}
+	else
+	{
+		machineError("Cannot pop from empty stack  '"
+			+ loc + "' !", *this);
+	}
+
+	return std::nullopt;
+}
+
+std::optional<Loc_t> Machine::tryPopLoc(Env_t env, Loc_t loc)
+{
+	if (!m_Memory[loc].empty())
+	{
+		if (m_Memory[loc].back().second->isVal())
+		{
+			const ValTerm &val = m_Memory[loc].back().second->asVal();
+			m_Memory[loc].pop_back();
+
+			if (val.isLoc())
+			{
+				return val.asLoc();
+			}
+		}
+	}
+	else
+	{
+		machineError("Cannot pop from empty stack  '"
+			+ loc + "' !", *this);
+	}
+
+	return std::nullopt;
 }
 
 TermHandle_t Machine::freshTerm(Term &&term)
@@ -682,24 +582,24 @@ std::string Machine::getStackDebug() const
 
 	ss << "---- Stacks ----" << '\n';
 
-	for (auto itStacks = m_Stacks.begin(); itStacks != m_Stacks.end(); ++itStacks)
+	for (auto itMemory = m_Memory.begin(); itMemory != m_Memory.end(); ++itMemory)
 	{
-		if (auto idOpt = getIdFromReservedLoc(itStacks->first))
+		if (auto idOpt = getIdFromReservedLoc(itMemory->first))
 		{
 			ss << "  -- (Reserved) Location " << idOpt.value() << '\n';
 		}
 		else
 		{
-			ss << "  -- Location " << itStacks->first << '\n';
+			ss << "  -- Location " << itMemory->first << '\n';
 		}
 
-		for (auto itStack = itStacks->second.rbegin(); itStack != itStacks->second.rend(); ++itStack)
+		for (auto itStack = itMemory->second.rbegin(); itStack != itMemory->second.rend(); ++itStack)
 		{
-			ss << "    " << stringifyTerm((*itStack)) << '\n';
+			ss << "    " << stringifyClosure(*itStack) << '\n';
 		}
 
-		auto itStacksCopy = itStacks;
-		if (!(++itStacksCopy == m_Stacks.end()))
+		auto itMemoryCopy = itMemory;
+		if (!(++itMemoryCopy == m_Memory.end()))
 		{
 			ss << '\n';
 		}
@@ -716,40 +616,13 @@ std::string Machine::getCallstackDebug() const
 
 	ss << "---- Call Stack ----" << '\n';
 
-	for (auto itFrame = m_CallStack.rbegin(); itFrame != m_CallStack.rend(); ++itFrame)
+	for (auto itCallStack = m_CallStack.rbegin(); itCallStack != m_CallStack.rend(); ++itCallStack)
 	{
-		ss << std::string(m_CallStack.size() - (m_CallStack.rend() - itFrame), ' ');
-		ss << "> " << itFrame->first << " => " << stringifyTerm(itFrame->second) << '\n';
+		ss << std::string(m_CallStack.size() - (m_CallStack.rend() - itCallStack), ' ');
+		ss << "> " << itCallStack->first << " => " << stringifyTerm(itCallStack->second) << "\n";
 	}
 
 	ss << "---------------";
-
-	return ss.str();
-}
-
-std::string Machine::getBindDebug() const
-{
-	std::stringstream ss;
-
-	ss << "--- Bind Context ---" << '\n';
-
-	for (auto itBindCtx = m_VarBindCtx.begin(); itBindCtx != m_VarBindCtx.end(); ++itBindCtx)
-	{
-		ss << "  -- Binds for term " << stringifyTerm(itBindCtx->first) << '\n';
-
-		for (auto itBinds = itBindCtx->second.begin(); itBinds != itBindCtx->second.end(); ++itBinds)
-		{
-			ss << "    " << (*itBinds).first << " --> " << stringifyTerm(itBinds->second) << '\n';
-		}
-
-		auto itBindCtxCopy = itBindCtx;
-		if (!(++itBindCtxCopy == m_VarBindCtx.end()))
-		{
-			ss << '\n';
-		}
-	}
-
-	ss << "--------------------";
 
 	return ss.str();
 }

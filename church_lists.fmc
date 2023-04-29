@@ -1,0 +1,31 @@
+get = (<@a> . a<x> . [x]a . [x])
+set = (<@a> . <x> . a<_> . [x]a)
+
+write = (<@a> . <x> . [x]a)
+print = ([#out] . write)
+
+read = (<@a> . a<x> . [x])
+input = ([#in] . read)
+
+multiply_aux = (
+    <t> . <n> . <m> . [m] . (
+        0 -> [t],
+        otherwise -> [m] . [1] . - . [n] . [t] . [n] . + . multiply_aux
+    )
+)
+multiply = ([0] . multiply_aux)
+
+square = (<x> . [x] . [x] . multiply)
+
+nil =  (<_> . <x> . [x])
+cons = (<h> . <t> . <f> . [t] . [h] . f)
+head = (<l> . [<h> . <_> . h] . l)
+tail = (<l> . [<_> . <t> . t] . l)
+map = (<f> . <l> . [nil] . [<h> . <t> . [[[t] . [f] . map] . [[h] . f] . cons]] . l)
+
+main = (
+    [[[[nil] . [3] . cons] . [2] . cons] . [1] . cons] . [square] . map . <l> . new<@a> . [l]a
+    . [#a] . get . head . print
+    . [#a] . get . tail . head . print
+    . [#a] . get . tail . tail . head . print
+)

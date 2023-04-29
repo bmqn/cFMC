@@ -5,9 +5,20 @@
 
 #include "Utils.hpp"
 
+bool isReservedLoc(const Loc_t& loc)
+{
+	if      (loc == k_LambdaLoc)  { return true; }
+	else if (loc == k_NewLoc)     { return true; }
+	else if (loc == k_InputLoc)   { return true; }
+	else if (loc == k_OutputLoc)  { return true; }
+	else if (loc == k_NullLoc)    { return true; }
+
+	return false;
+}
+
 std::optional<Loc_t> getReservedLocFromId(const std::string_view &id)
 {
-	if      (id == k_LambdaLoc) { return k_LambdaLoc; }
+	if      (id == k_LambdaLoc)  { return k_LambdaLoc; }
 	else if (id == k_NewLoc)     { return k_NewLoc; }
 	else if (id == k_InputLoc)   { return k_InputLoc; }
 	else if (id == k_OutputLoc)  { return k_OutputLoc; }
@@ -18,7 +29,7 @@ std::optional<Loc_t> getReservedLocFromId(const std::string_view &id)
 
 std::optional<std::string> getIdFromReservedLoc(const Loc_t &loc)
 {
-	if      (loc == k_LambdaLoc) { return std::string(k_LambdaLoc); }
+	if      (loc == k_LambdaLoc)  { return std::string(k_LambdaLoc); }
 	else if (loc == k_NewLoc)     { return std::string(k_NewLoc); }
 	else if (loc == k_InputLoc)   { return std::string(k_InputLoc); }
 	else if (loc == k_OutputLoc)  { return std::string(k_OutputLoc); }
@@ -147,6 +158,148 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 			ss << stringifyTerm(cases.getOtherwise());
 			ss << ")";
 			term = cases.getBody();
+		}
+	}
+
+	return ss.str();
+}
+
+std::string stringifyClosure(Closure_t closure, bool omitNil)
+{
+	// TODO: Get the location substitutions aswell !
+
+	std::stringstream ss;
+
+	for (int i = 0; closure.second; ++i)
+	{
+		if (i > 0 && (!omitNil || !closure.second->isNil()))
+		{
+			ss << " . ";
+		}
+
+		if (closure.second->isNil())
+		{
+			if (!omitNil)
+			{
+				ss << "*";
+			}
+			closure.second = nullptr;
+		}
+		else if (closure.second->isVar())
+		{
+			const VarTerm &var = closure.second->asVar();
+			auto itEnv = closure.first.first.find(var.getVar());
+			if (itEnv != closure.first.first.end())
+			{
+				auto closurePtr = itEnv->second;
+				Closure_t *closure = reinterpret_cast<Closure_t *>(closurePtr.get());
+				ss << stringifyClosure(*closure);
+			}
+			else
+			{
+				ss << var.getVar();
+			}
+			closure.second = var.getBody();
+		}
+		else if (closure.second->isAbs())
+		{
+			const AbsTerm &abs = closure.second->asAbs();
+			if (abs.getLoc() != k_LambdaLoc)
+			{
+				ss << abs.getLoc();
+			}
+			ss << "<" << abs.getVar().value_or("_") << ">";
+			closure.second = abs.getBody();
+		}
+		else if (closure.second->isApp())
+		{
+			const AppTerm &app = closure.second->asApp();
+			ss << "[";
+			ss << stringifyClosure(std::make_pair(closure.first, app.getArg()));
+			ss << "]";
+			if (app.getLoc() != k_LambdaLoc)
+			{
+				ss << app.getLoc();
+			}
+			closure.second = app.getBody();
+		}
+		else if (closure.second->isLocAbs())
+		{
+			const LocAbsTerm &locAbs = closure.second->asLocAbs();
+			if (locAbs.getLoc() != k_LambdaLoc)
+			{
+				ss << locAbs.getLoc();
+			}
+			ss << "<@" << locAbs.getLocVar().value_or("_") << ">";
+			closure.second = locAbs.getBody();
+		}
+		else if (closure.second->isLocApp())
+		{
+			const LocAppTerm &locApp = closure.second->asLocApp();
+			ss << "[#" << locApp.getArg() << "]";
+			if (locApp.getLoc() != k_LambdaLoc)
+			{
+				ss << locApp.getLoc();
+			}
+			closure.second = locApp.getBody();
+		}
+		else if (closure.second->isVal())
+		{
+			const ValTerm &val = closure.second->asVal();
+			if (val.isPrim())
+			{
+				ss << val.asPrim();
+			}
+			else if (val.isLoc())
+			{
+				ss << "#" << val.asLoc();
+			}
+			closure.second = nullptr;
+		}
+		else if (closure.second->isBinOp())
+		{
+			const BinOpTerm &binOp = closure.second->asBinOp();
+			if (binOp.isOp(BinOpTerm::Plus))
+			{
+				ss << "+";
+			}
+			else if (binOp.isOp(BinOpTerm::Minus))
+			{
+				ss << "-";
+			}
+			closure.second = binOp.getBody();
+		}
+		else if (closure.second->isPrimCases())
+		{
+			const CasesTerm<Prim_t> &cases = closure.second->asPrimCases();
+			ss << "(";
+			for (auto itCases = cases.begin(); itCases != cases.end(); ++itCases)
+			{
+				ss << itCases->first;
+				ss  << " -> ";
+				ss << stringifyClosure(std::make_pair(closure.first, itCases->second));
+				ss << ", ";
+			}
+			ss << "otherwise -> ";
+			ss << stringifyClosure(std::make_pair(closure.first, cases.getOtherwise()));
+			ss << ")";
+			closure.second = cases.getBody();
+		}
+		else if (closure.second->isLocCases())
+		{
+			const CasesTerm<Loc_t> &cases = closure.second->asLocCases();
+			ss << "(";
+			for (auto itCases = cases.begin(); itCases != cases.end(); ++itCases)
+			{
+				ss << itCases->first;
+				ss  << " -> ";
+				ss << stringifyClosure(std::make_pair(closure.first, itCases->second));
+				ss << ", ";
+			}
+			ss << "otherwise -> ";
+			ss << stringifyClosure(std::make_pair(closure.first, cases.getOtherwise()));
+			ss << ")";
+			closure.second = cases.getBody();
 		}
 	}
 
