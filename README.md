@@ -4,6 +4,8 @@ An interpreter for a C-inspired Functional Machine Calculus (FMC) variant which 
 
 ### Programs
 
+#### Basics
+
 Program which pushes (prints) `0` to the output stream. 
 
 ```
@@ -12,9 +14,11 @@ print = ([#out] . write)
 main  = ([0] . print)
 ```
 
-The function `print` is defined in terms of a more general variant called `write` which parameterizes the location to write to and the term to write.
+The function `print` is defined in terms of a more general variant called `write` which parameterizes a location to write to and a term to write with.
 
-How about a linked-list ? Let's define function `LinkedList` to create a linked-list and function `push_back` to push elements to its tail.
+#### Imperative-style mutable linked-list data structure
+
+Define function `LinkedList` to build a linked-list and define function `push_back` to push elements to its tail.
 
 ```
 LinkedList = (
@@ -29,7 +33,7 @@ push_back = (
 )
 ```
 
-Let's also define a function `traverse` for traversing the list in order and running a function `f` on each element.
+Define function `traverse` for traversing the list in order and running a function `f` on each element.
 
 ```
 traverse = (
@@ -54,6 +58,33 @@ main = (
     . [#p] . [4] . push_back
     . [#p] . [5] . push_back
     . [#p] . [print] . traverse
+)
+```
+
+#### Functional-style higher-order function list
+
+Define functions `nil` and `cons` to build a list and define functions `head` and `tail` to access the head and tail of the list, respectively.
+
+```
+nil =  (<_> . <x> . [x])
+cons = (<h> . <t> . <f> . <x> . [t] . [h] . f)
+head = (<l> . [nil] . [<h> . <_> . h] . l)
+tail = (<l> . [nil] . [<_> . <t> . t] . l)
+```
+
+Define function `map` for lazily mapping the list to a new one which has `f` applied to each element.
+
+```
+map = (<f> . <l> . [nil] . [<h> . <t> . [[[t] . [f] . map] . [[h] . f] . cons]] . l)
+```
+
+Create a list by building it with `cons`, then map it with `double` to double each element. 
+
+```
+double = (<x> . [x] . [x] . +)
+
+main = (
+    [[[[nil] . [3] . cons] . [2] . cons] . [1] . cons] . [double] . map . print
 )
 ```
 
