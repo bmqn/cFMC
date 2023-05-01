@@ -166,8 +166,6 @@ std::string stringifyTerm(TermHandle_t term, bool omitNil)
 
 std::string stringifyClosure(Closure_t closure, bool omitNil)
 {
-	// TODO: Get the location substitutions aswell !
-
 	std::stringstream ss;
 
 	for (int i = 0; closure.second; ++i)
@@ -183,69 +181,156 @@ std::string stringifyClosure(Closure_t closure, bool omitNil)
 			{
 				ss << "*";
 			}
+
 			closure.second = nullptr;
 		}
 		else if (closure.second->isVar())
 		{
 			const VarTerm &var = closure.second->asVar();
+
 			auto itEnv = closure.first.first.find(var.getVar());
 			if (itEnv != closure.first.first.end())
 			{
 				auto closurePtr = itEnv->second;
-				Closure_t *closure = reinterpret_cast<Closure_t *>(closurePtr.get());
-				ss << stringifyClosure(*closure);
+				ss << stringifyClosure(
+					*reinterpret_cast<Closure_t *>(closurePtr.get())
+				);
 			}
 			else
 			{
 				ss << var.getVar();
 			}
+
 			closure.second = var.getBody();
-		}
-		else if (closure.second->isAbs())
-		{
-			const AbsTerm &abs = closure.second->asAbs();
-			if (abs.getLoc() != k_LambdaLoc)
-			{
-				ss << abs.getLoc();
-			}
-			ss << "<" << abs.getVar().value_or("_") << ">";
-			closure.second = abs.getBody();
 		}
 		else if (closure.second->isApp())
 		{
 			const AppTerm &app = closure.second->asApp();
+			
 			ss << "[";
-			ss << stringifyClosure(std::make_pair(closure.first, app.getArg()));
+			ss << stringifyClosure(std::make_pair(
+				closure.first, app.getArg())
+			);
 			ss << "]";
-			if (app.getLoc() != k_LambdaLoc)
+
+			auto itEnv = closure.first.second.find(app.getLoc());
+			if (itEnv != closure.first.second.end())
+			{
+				if (itEnv->second != k_LambdaLoc)
+				{
+					ss << itEnv->second;
+				}
+			}
+			else if (app.getLoc() != k_LambdaLoc)
 			{
 				ss << app.getLoc();
 			}
+
 			closure.second = app.getBody();
 		}
-		else if (closure.second->isLocAbs())
+		else if (closure.second->isAbs())
 		{
-			const LocAbsTerm &locAbs = closure.second->asLocAbs();
-			if (locAbs.getLoc() != k_LambdaLoc)
+			const AbsTerm &abs = closure.second->asAbs();
+
 			{
-				ss << locAbs.getLoc();
+				auto itEnv = closure.first.second.find(abs.getLoc());
+				if (itEnv != closure.first.second.end())
+				{
+					if (itEnv->second != k_LambdaLoc)
+					{
+						ss << itEnv->second;
+					}
+				}
+				else if (abs.getLoc() != k_LambdaLoc)
+				{
+					ss << abs.getLoc();
+				}
 			}
-			ss << "<@" << locAbs.getLocVar().value_or("_") << ">";
-			closure.second = locAbs.getBody();
+
+			ss << "<" << abs.getVar().value_or("_") << ">";
+
+			if (abs.getVar())
+			{
+				auto itEnv = closure.first.first.find(abs.getVar().value());
+				if (itEnv != closure.first.first.end())
+				{
+					closure.first.first.erase(itEnv);
+				}
+			}
+			
+			closure.second = abs.getBody();
 		}
 		else if (closure.second->isLocApp())
 		{
 			const LocAppTerm &locApp = closure.second->asLocApp();
-			ss << "[#" << locApp.getArg() << "]";
-			if (locApp.getLoc() != k_LambdaLoc)
+
+			ss << "[#";
 			{
-				ss << locApp.getLoc();
+				auto itEnv = closure.first.second.find(locApp.getArg());
+				if (itEnv != closure.first.second.end())
+				{
+					ss << itEnv->second;
+				}
+				else
+				{
+					ss << locApp.getArg();
+				}
 			}
+			ss << "]";
+
+			{
+				auto itEnv = closure.first.second.find(locApp.getLoc());
+				if (itEnv != closure.first.second.end())
+				{
+					if (itEnv->second != k_LambdaLoc)
+					{
+						ss << itEnv->second;
+					}
+				}
+				else if (locApp.getLoc() != k_LambdaLoc)
+				{
+					ss << locApp.getLoc();
+				}
+			}
+
 			closure.second = locApp.getBody();
+		}
+		else if (closure.second->isLocAbs())
+		{
+			const LocAbsTerm &locAbs = closure.second->asLocAbs();
+
+			{
+				auto itEnv = closure.first.second.find(locAbs.getLoc());
+				if (itEnv != closure.first.second.end())
+				{
+					if (itEnv->second != k_LambdaLoc)
+					{
+						ss << itEnv->second;
+					}
+				}
+				else if (locAbs.getLoc() != k_LambdaLoc)
+				{
+					ss << locAbs.getLoc();
+				}
+			}
+
+			if (locAbs.getLocVar())
+			{
+				auto itEnv = closure.first.second.find(locAbs.getLocVar().value());
+				if (itEnv != closure.first.second.end())
+				{
+					closure.first.second.erase(itEnv);
+				}
+			}
+
+			ss << "<@" << locAbs.getLocVar().value_or("_") << ">";
+
+			closure.second = locAbs.getBody();
 		}
 		else if (closure.second->isVal())
 		{
 			const ValTerm &val = closure.second->asVal();
+
 			if (val.isPrim())
 			{
 				ss << val.asPrim();
@@ -254,11 +339,13 @@ std::string stringifyClosure(Closure_t closure, bool omitNil)
 			{
 				ss << "#" << val.asLoc();
 			}
+
 			closure.second = nullptr;
 		}
 		else if (closure.second->isBinOp())
 		{
 			const BinOpTerm &binOp = closure.second->asBinOp();
+
 			if (binOp.isOp(BinOpTerm::Plus))
 			{
 				ss << "+";
@@ -267,38 +354,51 @@ std::string stringifyClosure(Closure_t closure, bool omitNil)
 			{
 				ss << "-";
 			}
+
 			closure.second = binOp.getBody();
 		}
 		else if (closure.second->isPrimCases())
 		{
 			const CasesTerm<Prim_t> &cases = closure.second->asPrimCases();
+
 			ss << "(";
 			for (auto itCases = cases.begin(); itCases != cases.end(); ++itCases)
 			{
 				ss << itCases->first;
 				ss  << " -> ";
-				ss << stringifyClosure(std::make_pair(closure.first, itCases->second));
+				ss << stringifyClosure(std::make_pair(
+					closure.first, itCases->second)
+				);
 				ss << ", ";
 			}
 			ss << "otherwise -> ";
-			ss << stringifyClosure(std::make_pair(closure.first, cases.getOtherwise()));
+			ss << stringifyClosure(std::make_pair(
+				closure.first, cases.getOtherwise())
+			);
 			ss << ")";
+
 			closure.second = cases.getBody();
 		}
 		else if (closure.second->isLocCases())
 		{
 			const CasesTerm<Loc_t> &cases = closure.second->asLocCases();
+			
 			ss << "(";
 			for (auto itCases = cases.begin(); itCases != cases.end(); ++itCases)
 			{
 				ss << itCases->first;
 				ss  << " -> ";
-				ss << stringifyClosure(std::make_pair(closure.first, itCases->second));
+				ss << stringifyClosure(std::make_pair(
+					closure.first, itCases->second)
+				);
 				ss << ", ";
 			}
 			ss << "otherwise -> ";
-			ss << stringifyClosure(std::make_pair(closure.first, cases.getOtherwise()));
+			ss << stringifyClosure(std::make_pair(
+				closure.first, cases.getOtherwise())
+			);
 			ss << ")";
+
 			closure.second = cases.getBody();
 		}
 	}
